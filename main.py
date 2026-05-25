@@ -123,7 +123,7 @@ btn_attack = Button(500, 700, text="Атаковать")
 current_scene = "menu"
 weight, height = 1000, 800
 screen = pygame.display.set_mode((weight, height))
-pygame.display.set_caption('Game')
+pygame.display.set_caption('Gay')
 
 clock = pygame.time.Clock()
 
@@ -227,7 +227,7 @@ while True:
         # --- ИНТЕРФЕЙС И КНОПКИ ДЕЙСТВИЙ ---
         # Выводим ХП игрока сверху
         hp_text = names_font.render(f"Максон HP: {novel.player.gethp()}", True, black)
-        #screen.blit(hp_text, (20, 180))
+        screen.blit(hp_text, (20, 180))
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
