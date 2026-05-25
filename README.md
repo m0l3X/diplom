@@ -5,3 +5,5 @@ ass diplom we're making for our college
 hi im doin shit
 
 hi me too
+
+hi
