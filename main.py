@@ -94,12 +94,11 @@ ired = (205, 92, 92)
 dred = (34, 3, 4)
 
 # Диалоговое окно и шрифты
-dialog_font = pygame.font.SysFont('Freeride', 24) 
+dialog_font = pygame.font.SysFont('Freeride', 27) 
 ui_font = pygame.font.SysFont('Freeride', 20)
 names_font = pygame.font.SysFont('Freeride', 35)
 
 # Загрузка ассетов (код напарника)
-makson_image = pygame.image.load('assets/images/sprites/main.png')
 nemo_image = pygame.image.load('assets/images/sprites/nemo.png')
 background_image = pygame.image.load('assets/images/fon.png')
 background_menu = pygame.image.load('assets/images/UI/menu_fon.png')
@@ -113,6 +112,19 @@ click_zone = pygame.Rect(350, 340, 300, 100)
 
 # Зоны для кликов в самой игре (Кнопки действий)
 # Формат: pygame.Rect(X, Y, ШИРИНА, ВЫСОТА)
+
+#херня с анимацией ..dunno если честно куда ее вставить. так что пусть сюда.. ):
+#тут загружаются кадрі анимации
+malex_anim = [
+    pygame.image.load('assets/images/sprites/Pmalex.png'),
+    pygame.image.load('assets/images/sprites/Pmalex01.png'),
+]
+# переменніе для управления таймингом анимации
+current_frame = 0 # индекс текущего кадра
+last_update = pygame.time.get_ticks() # єто таймер для отслеживания времени между кадрами
+animation_speed = 600  # скорость смені кадров в миллисекундах
+
+
 btn_move = Button(100, 700, text="Идти")
 btn_move = Button(100, 700, text="Идти")
 btn_move = Button(100, 700, text="Идти")
@@ -130,6 +142,12 @@ clock = pygame.time.Clock()
 while True:
     mouse_pos = pygame.mouse.get_pos()
     clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
+    
+    #тут херня с обновлением кадров анимации
+    now = pygame.time.get_ticks()
+    if now - last_update > animation_speed:
+        current_frame = (current_frame + 1) % len(malex_anim) # Переходим к следующему кадру
+        last_update = now
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -159,7 +177,7 @@ while True:
                         
                     elif btn_inspect.rect.collidepoint(mouse_pos):
                         res = novel.handle("check")
-                        display_text.set_text("Максон внимательно осматривается вокруг...\n"+res["text"]) 
+                        display_text.set_text("Малекс внимательно осматривается вокруг...\n"+res["text"]) 
                         items = res["text"].split("\n")
                         
                         
@@ -213,7 +231,7 @@ while True:
         screen.blit(background_image, (0.5 * weight - background_image.get_width() // 2, 0.5 * height - background_image.get_height() // 2 ))
         
         # Рисуем Спрайты персонажей
-        screen.blit(makson_image, (0.5 * weight - makson_image.get_width() // 2 - 10, 0.5 * height - makson_image.get_height() // 2 + 30))
+        screen.blit(malex_anim[current_frame], (0.5 * weight - malex_anim[current_frame].get_width() // 2, 0.5 * height - malex_anim[current_frame].get_height() // 2 + 30))
 
         if novel.state == "COMBAT":
             screen.blit(nemo_image, (0.5 * weight - nemo_image.get_width() // 2 + 20, 0.5 * height - nemo_image.get_height() // 2 + 30))
@@ -226,8 +244,8 @@ while True:
         
         # --- ИНТЕРФЕЙС И КНОПКИ ДЕЙСТВИЙ ---
         # Выводим ХП игрока сверху
-        hp_text = names_font.render(f"Максон HP: {novel.player.gethp()}", True, black)
-        screen.blit(hp_text, (20, 180))
+        hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
+        screen.blit(hp_text, (30, 145))
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
