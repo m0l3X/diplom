@@ -42,8 +42,8 @@ class Button:
         
         # Эффект покачивания (поворот оригинальной картинки, без накопления искажений)
         if current_time - self.last_update >= self.speed:
-            r = random.randint(-10, 10)
-            self.img = pygame.transform.rotate(self.orig_img, r)
+            r = random.randint(-3, 3)
+            self.img = pygame.transform.rotate(self.orig_img, r*2)
             self.last_update = current_time
             
         # Центрирование картинки кнопки относительно её rect
@@ -178,7 +178,7 @@ btn_s = Button(100, 660, text="Юг", func=lambda : display_text.set_text(novel.
 btn_e = Button(100, 620, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]) )
 btn_w = Button(100, 580, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]) )
 
-btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : display_text.set_text("Максон внимательно осматривается вокруг...\n"+novel.handle("check")["text"]) )
+btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : display_text.set_text("Малекс внимательно осматривается вокруг...\n"+novel.handle("check")["text"]) )
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
 
 freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack])
@@ -241,7 +241,7 @@ while True:
             if current_scene == "menu":
                 if click_zone.collidepoint(mouse_pos):
                     res = novel.handle("load") # Получаем описание локации при входе в игру
-                    display_text.update()
+                    display_text.set_text(res["text"])
                     current_scene = "game"
                     
                     

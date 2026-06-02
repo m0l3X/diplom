@@ -113,7 +113,7 @@ class RPGNovel():
                 case "move":
                     if payload in current_room.exits:
                         player.location = current_room.exits[payload]
-                        response["text"] = f"Ты перешел в {player.location}"
+                        response["text"] = player.current_world.get_location(player.location).description #f"Ты перешел в {player.location}"
                     else:
                         response["text"] = "Туда нельзя пройти!"
                 case "exit":
@@ -126,6 +126,7 @@ class RPGNovel():
 
                 case "load":
                     self.init_from_db()
+                    response["text"] = player.current_world.get_location(player.location).description
                     
                 case "inv":
                     if not player.inventory:
@@ -215,7 +216,8 @@ class RPGNovel():
                         response["text"] = "Враг не найден."
         elif self.state == "COMBAT":
             enemy = self.current_enemy
-            enemy.init_npc(self)
+            if not hasattr(enemy, "npc_id"):
+                enemy.init_npc(self)
             match action:
                 case "fight_attack":
                     # Payload — выбранное оружие
