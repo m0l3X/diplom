@@ -10,31 +10,79 @@ pygame.init()
 
 btn = pygame.image.load('assets/images/UI/buttonmini.png')
 class Button:
-    def __init__(self, x, y, w=None, h=None, text="", img=btn):
-        self.rect = pygame.Rect(x,y,w,h) if w and h else pygame.Rect(x,y,img.get_width(), img.get_height())
-        self.__w = self.rect.width
-        self.img = img
-        self.orig_img = img
-        self.text = PygameTextPrinter(speed_ms=50)
-        self.text.set_text(text)
+    def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button")):
+        # Если img не передан, используем дефолтный (предполагается, что дефолтный btn загружен глобально)
+        self.orig_img = img if img else btn 
+        self.img = self.orig_img
+        
+        # Задаем размеры rect
+        width = w if w else self.img.get_width()
+        height = h if h else self.img.get_height()
+        self.rect = pygame.Rect(x, y, width, height)
+        
+        # Анимация текста внутри кнопки
+        self.text_manager = PygameTextPrinter(speed_ms=50)
+        self.text_manager.set_text(text)
+        
+        self.last_text = ""
+        self.text_surf = None
+        
+        # Таймеры для визуальных эффектов (поворот)
         self.last_update = 0
         self.speed = 333
+        
         self.enabled = True
+        self.func = func
+
     def draw(self, surf):
-        if self.enabled == False: 
-            self.rect.width = 0 if self.rect.width != 0 else 0
-            return
-        self.rect.width = self.__w if self.rect.width == 0 else self.rect.width
-        pos = (self.rect.x +self.rect.width//2 - self.img.width//2, self.rect.y + self.rect.height//2 - self.img.height//2)
-        self.text_surf = ui_font.render(self.text.get_text(), True, black)
-        self.text.update()
-        surf.blit(btn, pos)
-        surf.blit(self.text_surf, (self.rect.x + 45, self.rect.y + 8))
+        if not self.enabled:
+            return  # Просто не рисуем и не обновляем, если кнопка выключена
+            
         current_time = pygame.time.get_ticks()
+        
+        # Эффект покачивания (поворот оригинальной картинки, без накопления искажений)
         if current_time - self.last_update >= self.speed:
-            r = random.randint(-10,10)
+            r = random.randint(-10, 10)
             self.img = pygame.transform.rotate(self.orig_img, r)
             self.last_update = current_time
+            
+        # Центрирование картинки кнопки относительно её rect
+        img_w, img_h = self.img.get_width(), self.img.get_height()
+        pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
+               self.rect.y + self.rect.height // 2 - img_h // 2)
+        
+        surf.blit(self.img, pos)
+        
+        # Обновляем состояние печатного текста
+        self.text_manager.update()
+        current_text_string = self.text_manager.get_text()
+        
+        # ОПТИМИЗАЦИЯ: Рендерим текст ТОЛЬКО если строка изменилась
+        if current_text_string != self.last_text or self.text_surf is None:
+            self.last_text = current_text_string
+            self.text_surf = ui_font.render(current_text_string, True, (0, 0, 0))
+            
+        # Отрисовка текста по центру кнопки (или с фиксированным отступом)
+        surf.blit(self.text_surf, (self.rect.x + 45, self.rect.y + 8))
+
+
+class Menu:
+    def __init__(self, buttons):
+        self.panels = buttons
+
+    def draw(self, surf):
+        for item in self.panels:
+            if isinstance(item, Button):
+                item.draw(surf)
+
+    def click(self, mouse_pos):
+        for btn in self.panels:
+            if isinstance(btn, Button):
+                # Проверяем активность кнопки ДО проверки коллизии
+                if btn.enabled and btn.rect.collidepoint(mouse_pos):
+                    btn.func()
+                    return True # Возвращаем True, если клик успешно обработан
+        return False
 
 
 class PygameTextPrinter:
@@ -125,12 +173,21 @@ last_update = pygame.time.get_ticks() # єто таймер для отслеж�
 animation_speed = 600  # скорость смені кадров в миллисекундах
 
 
-btn_move = Button(100, 700, text="Идти")
-btn_move = Button(100, 700, text="Идти")
-btn_move = Button(100, 700, text="Идти")
-btn_move = Button(100, 700, text="Идти")
-btn_inspect = Button(300, 700, text="Осмотреться")
-btn_attack = Button(500, 700, text="Атаковать")
+btn_n = Button(100, 700, text="Север", func=lambda : display_text.set_text(novel.handle("move","север")["text"]) )
+btn_s = Button(100, 660, text="Юг", func=lambda : display_text.set_text(novel.handle("move","юг")["text"]) )
+btn_e = Button(100, 620, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]) )
+btn_w = Button(100, 580, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]) )
+
+btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : display_text.set_text("Максон внимательно осматривается вокруг...\n"+novel.handle("check")["text"]) )
+btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
+
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack])
+
+# Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
+btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
+btn_hit = Button(500, 700, text="Ударить", func=lambda: fight())
+
+battle = Menu([btn_run, btn_hit])
 
 current_scene = "menu"
 weight, height = 1000, 800
@@ -138,6 +195,29 @@ screen = pygame.display.set_mode((weight, height))
 pygame.display.set_caption('Gay')
 
 clock = pygame.time.Clock()
+
+def fight():
+    def fetch_ai_response():
+        global is_loading
+        
+        try:
+            is_loading = True
+            btn_attack.enabled = False
+            btn_run.enabled = False
+            # Тяжелый запрос к серверу (твой novel.handle внутри делает запрос к LLM)
+            res = novel.handle("fight_attack", payload=novel.player.inventory[0])
+            # Передаем текст в принтер (это безопасно делать из потока)
+            display_text.set_text(res["text"])
+        except Exception as e:
+            display_text.set_text(f"Ошибка связи с ИИ: {e}")
+        finally:
+            # Выключаем режим загрузки, когда поток завершил работу
+            is_loading = False
+            btn_attack.enabled = True
+            btn_run.enabled = True
+    is_loading = True
+    display_text.set_text(f"{novel.current_enemy.name} думает...")
+    threading.Thread(target=fetch_ai_response, daemon=True).start() 
 
 while True:
     mouse_pos = pygame.mouse.get_pos()
@@ -170,51 +250,12 @@ while True:
                 
                 # Если мы в обычном режиме исследования
                 if novel.state == "EXPLORING":
-                    if btn_move.rect.collidepoint(mouse_pos):
-                        # Игрок нажал "Идти в Пятерочку"
-                        res = novel.handle("move", "север")
-                        display_text.set_text(res["text"]) 
-                        
-                    elif btn_inspect.rect.collidepoint(mouse_pos):
-                        res = novel.handle("check")
-                        display_text.set_text("Малекс внимательно осматривается вокруг...\n"+res["text"]) 
-                        items = res["text"].split("\n")
-                        
-                        
-                    elif btn_attack.rect.collidepoint(mouse_pos):
-                        # Игрок нажал "Атаковать врага под номером 1"
-                        res = novel.handle("start_combat", "1")
-                        display_text.set_text(res["text"]) 
+                    freeroam.click(mouse_pos)
+                    
 
                 # Если движок переключился в режим боя
                 elif novel.state == "COMBAT":
-                    if btn_attack.rect.collidepoint(mouse_pos): # Переиспользуем кнопку для удара
-                        #res = novel.handle("fight_attack", payload=novel.player.inventory[0])
-                        def fetch_ai_response():
-                            global is_loading
-                            
-                            try:
-                                is_loading = True
-                                btn_attack.enabled = False
-                                btn_move.enabled = False
-                                # Тяжелый запрос к серверу (твой novel.handle внутри делает запрос к LLM)
-                                res = novel.handle("fight_attack", payload=novel.player.inventory[0])
-                                # Передаем текст в принтер (это безопасно делать из потока)
-                                display_text.set_text(res["text"])
-                            except Exception as e:
-                                display_text.set_text(f"Ошибка связи с ИИ: {e}")
-                            finally:
-                                # Выключаем режим загрузки, когда поток завершил работу
-                                is_loading = False
-                                btn_attack.enabled = True
-                                btn_move.enabled = True
-                        is_loading = True
-                        display_text.set_text(f"{novel.current_enemy.name} думает...")
-                        threading.Thread(target=fetch_ai_response, daemon=True).start() 
-                        
-                    elif btn_move.rect.collidepoint(mouse_pos): # Переиспользуем кнопку для побега
-                        res = novel.handle("fight_run")
-                        display_text.set_text(res["text"]) 
+                    battle.click(mouse_pos)
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
@@ -249,25 +290,10 @@ while True:
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
-            # Кнопка Идти
-            btn_move.draw(screen)
-            
-            # Кнопка Осмотреться
-            btn_inspect.draw(screen)
-            
-            # Кнопка Атака
-            btn_attack.draw(screen)
+            freeroam.draw(screen)
             
         elif novel.state == "COMBAT":
-            
-
-            # Во время боя кнопки меняют свое назначение и цвет!
-            # Кнопка Побег (на месте кнопки Идти)
-            btn_move.text.current_text = "Сбежать"
-            btn_move.draw(screen)
-            # Кнопка Ударить (на месте кнопки Атака)
-            btn_attack.text.current_text = "Ударить"
-            btn_attack.draw(screen)
+            battle.draw(screen)
             # Показываем ХП врага, если идет бой
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)
