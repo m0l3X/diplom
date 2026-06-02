@@ -1,5 +1,5 @@
 import pygame
-import sys
+import sys as sus
 #import websearch
 from rpnovel_engine import RPGNovel 
 #import io
@@ -65,14 +65,23 @@ class Button:
         # Отрисовка текста по центру кнопки (или с фиксированным отступом)
         surf.blit(self.text_surf, (self.rect.x + 45, self.rect.y + 8))
 
+class Image:
+    def __init__(self, x, y, img):
+        self.img = img
+        self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
+    def draw(self, surf):
+        surf.blit(self.img, (self.rect.x, self.rect.y))
 
 class Menu:
     def __init__(self, buttons):
         self.panels = buttons
+        self.enabled = True
 
     def draw(self, surf):
         for item in self.panels:
             if isinstance(item, Button):
+                item.draw(surf)
+            else:
                 item.draw(surf)
 
     def click(self, mouse_pos):
@@ -129,7 +138,7 @@ class PygameTextPrinter:
         return self.current_text
 
 
-novel = RPGNovel("Maxon") 
+novel = RPGNovel("Mallex") 
 
 current_room_desc, player_hp, player_inv = novel.get_player_location()
 display_text = PygameTextPrinter(speed_ms=25)
@@ -178,16 +187,101 @@ btn_s = Button(100, 660, text="Юг", func=lambda : display_text.set_text(novel.
 btn_e = Button(100, 620, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]) )
 btn_w = Button(100, 580, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]) )
 
-btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : display_text.set_text("Малекс внимательно осматривается вокруг...\n"+novel.handle("check")["text"]) )
+btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
 
-freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack])
+btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_inventory())
+
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
 btn_hit = Button(500, 700, text="Ударить", func=lambda: fight())
 
 battle = Menu([btn_run, btn_hit])
+
+items_menu = Menu([text_box_image]) 
+items_menu.enabled = False
+
+# Действие 1: Подобрать предмет из комнаты
+def action_pick_up(item_index, item_name):
+    res = novel.handle("take", str(item_index + 1))
+    display_text.set_text(res["text"])
+    
+    # Обновляем это же меню, заново запросив шмот из комнаты
+    room_data = novel.handle("checkroom_internal")["text"]
+    rebuild_items_menu(room_data, action_pick_up)
+
+def action_inspect(item_index, item_name):
+    res = novel.handle("inspect", str(item_index + 1)) 
+    display_text.set_text(res["text"])
+    
+    # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
+    close_items_menu()
+
+
+# Действие 2: Использовать/осмотреть предмет из личного инвентаря
+def action_use_item(item_index, item_name):
+    # Предположим, у тебя на бэкенде есть команда "use" или "inspect"
+    res = novel.handle("usepotion", str(item_index + 1)) 
+    display_text.set_text(res["text"])
+    
+    # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
+    close_items_menu()
+
+def rebuild_items_menu(raw_data, on_click_callback):
+    """
+    Принимает строку с предметами через ';' и функцию, 
+    которая должна выполниться при клике на элемент.
+    """
+    if not raw_data: 
+        items_menu.panels = [
+            Image(0, 0, text_box_image), 
+            Button(20, 20, text="Пусто", func=lambda: close_items_menu())
+        ]
+        return
+
+    items_list = raw_data.split(";")
+    new_panels = [Image(0, 0, text_box_image)]
+    
+    for i, item_name in enumerate(items_list):
+        # Передаем в callback-функцию индекс предмета и его имя
+        btn = Button(
+            20, 20 + i * 50, 
+            text=item_name, 
+            func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name)
+        )
+        new_panels.append(btn)
+        
+    items_menu.panels = new_panels
+
+def close_items_menu(dummy=None):
+    items_menu.enabled = False
+
+def drop_buttons(item_idx, name):
+    open_player_inventory()
+    items_menu.panels.append(Button(220, 20 + item_idx*50, text=f"Осмотреть {name}", func=lambda: action_inspect(item_idx, name)))
+    items_menu.panels.append(Button(420, 20 + item_idx*50, text=f"Использовать {name}", func=lambda: action_use_item(item_idx, name)))
+
+
+def open_room_items():
+    items_menu.enabled = True
+    room_data = novel.handle("checkroom_internal")["text"]
+    # Строим меню предметов комнаты, при клике сработает подбор
+    rebuild_items_menu(room_data, action_pick_up)
+
+def open_player_inventory():
+    items_menu.enabled = True
+    inv_data = novel.handle("inv_internal")["text"]
+    print("ХМПФ!! ты хочешь чтобы я открыла для тебя инвентарь??? ну уж нет!! не надейся даже! н-но, если что он открылся.. н-наверное....") # why are you so tsundere
+    # Строим меню инвентаря, при клике сработает использование/осмотр
+    rebuild_items_menu(inv_data, drop_buttons)
+
+#def toggle_items(payload=novel.handle("checkroom_internal")["text"]):
+#    items_menu.enabled = not items_menu.enabled
+#    if items_menu.enabled:
+#        rebuild_items_menu(payload) # Строим меню только при открытии
+#    return payload
 
 current_scene = "menu"
 weight, height = 1000, 800
@@ -232,7 +326,7 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-            sys.exit()
+            sus.exit()
             
         # ОБРАБОТКА КЛИКОВ МЫШКИ
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -247,15 +341,18 @@ while True:
                     
             # КЛИКИ ВНУТРИ ИГРЫ (Связь с бэкендом)
             elif current_scene == "game":
-                
-                # Если мы в обычном режиме исследования
-                if novel.state == "EXPLORING":
-                    freeroam.click(mouse_pos)
+                if(items_menu.enabled):
+                    items_menu.click(mouse_pos)
+                else:
                     
+                    # Если мы в обычном режиме исследования
+                    if novel.state == "EXPLORING":
+                        freeroam.click(mouse_pos)
+                        
 
-                # Если движок переключился в режим боя
-                elif novel.state == "COMBAT":
-                    battle.click(mouse_pos)
+                    # Если движок переключился в режим боя
+                    elif novel.state == "COMBAT":
+                        battle.click(mouse_pos)
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
@@ -298,5 +395,7 @@ while True:
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)
                 screen.blit(enemy_hp_text, (780, 160))
+        if items_menu.enabled:
+            items_menu.draw(screen)
 
     pygame.display.flip()

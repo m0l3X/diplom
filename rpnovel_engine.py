@@ -132,13 +132,32 @@ class RPGNovel():
                     if not player.inventory:
                         response["text"] = "Инвентарь пуст."
                     else:
+                        if player.has_all_papers():
+                            player.getitembyid("galo").desc = 'Вспомни. Это ТО, что тебе нужно.'
                         text = ""
                         for item in player.inventory:
-                            if player.has_all_papers():
-                                player.getitembyid("galo").desc = 'Вспомни. Это ТО, что тебе нужно.'
                             text += f'{item.name} — {item.desc} - {getattr(item, "heal_power", 0)} ХП восттан. - {getattr(item, "damage", 0)} урона \n'
                         response["text"] = text
+                case "inv_internal":
+                    if not player.inventory:
+                        response["text"] = ""
+                    else:
+                        if player.has_all_papers():
+                            player.getitembyid("galo").desc = 'Вспомни. Это ТО, что тебе нужно.'
+                        #text = ""
+                        text = ";".join([item.name for item in player.inventory])
+                        
+                        response["text"] = text
 
+                case "inspect":
+                    choice = payload
+                    if not choice.isdigit():
+                        response["text"] = ("Нужно ввести номер.")
+                        #end of code here!
+                    choice = int(choice)
+                    if 1 <= choice <= len(player.inventory):
+                        item = player.inventory[choice - 1]
+                        response["text"] = f'{item.name} — {item.desc} - {getattr(item, "heal_power", 0)} ХП восттан. - {getattr(item, "damage", 0)} урона'
                 case "check":
                     text = ""
                     if current_room.enemies is not None:
@@ -154,6 +173,11 @@ class RPGNovel():
                     if current_room.items != []:
                         for i, item in enumerate(current_room.items, 1):
                             response["text"] = f"{i}. {item.name}"
+                case "checkroom_internal":
+                    if current_room.items:
+                        response["text"] = ";".join([item.name for item in current_room.items])
+                    else:
+                        response["text"] = ""
                         
                 case "take":
                     if payload.isdigit():
@@ -184,15 +208,18 @@ class RPGNovel():
                 case "usepotion":
                     choice = payload
                     if not choice.isdigit():
-                        cprint("Нужно ввести номер.")
+                        response["text"] = ("Нужно ввести номер.")
                         #end of code here!
                     choice = int(choice)
-                    if 1 <= choice <= len(usable_items):
-                        item = usable_items[choice - 1]
-                        heal = item.heal_power
-                        player.heal(heal)
-                        player.inventory.remove(item)
-                        cprint(f"Ты использовал {item.name} и восстановил {item.heal_power} HP!")
+                    if 1 <= choice <= len(player.inventory):
+                        item = player.inventory[choice - 1]
+                        if isinstance(item, Potion):
+                            heal = item.heal_power
+                            player.heal(heal)
+                            player.inventory.remove(item)
+                            response["text"] = f"Ты использовал {item.name} и восстановил {item.heal_power} HP!"
+                        else:
+                            response["text"] = "Это не зелье!"
 
                 case "start_combat":
                     # Payload — это индекс врага из списка в комнате
@@ -358,7 +385,8 @@ class Player():
 
         for item in data["inventory"].split(";"):
             self.inventory.append(Item.from_dict(json.loads(item)))
-        self.current_world = World.from_dict(data["world"].encode('utf-8'))
+        if "world" in data.keys():
+            self.current_world = World.from_dict(data["world"].encode('utf-8'))
     def take_damage(self, damage):
         self.__hp -= damage
         if self.__hp <= 0:
