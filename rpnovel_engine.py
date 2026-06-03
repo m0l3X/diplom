@@ -122,6 +122,7 @@ class RPGNovel():
 
                 case "save":
                     self.savedata()
+                    response["text"] = "Успешно сохранено!"
 
 
                 case "load":

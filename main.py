@@ -92,8 +92,130 @@ class Menu:
                 if btn.enabled and btn.rect.collidepoint(mouse_pos):
                     btn.func()
                     return True # Возвращаем True, если клик успешно обработан
+            #if isinstance(btn, TextInputField):
+            #    if btn.enabled and btn.rect.collidepoint(mouse_pos):
+            #        self.active = True
+            #    else:
+            #        self.active = False
+            #        #btn.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'pos': mouse_pos, 'button': 1}))
+            #        return True
         return False
+    def any_event(self, event):
+        for btn in self.panels:
+            if isinstance(btn, TextInputField):
+                btn.handle_event(event)
 
+class TextInputField:
+    def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, max_chars=50, on_submit=None):
+        self.orig_img = img if img else btn 
+        self.img = self.orig_img
+        self.last_update = 0
+        self.speed = 333
+        self.rect = pygame.Rect(x, y, w, h)
+        self.font = font
+        self.text_color = text_color
+        self.max_chars = max_chars
+        self.on_submit = on_submit  # Функция, которая вызовется при нажатии Enter
+        
+        self.text = "Сказать..."              # Текущий введенный текст
+        self.active = False         # Выбрано ли поле кликом мышки
+        self.enabled = True         # Видимо/активно ли поле в текущей сцене
+        
+        # Для мигающего курсора
+        self.cursor_visible = True
+        self.last_cursor_toggle = pygame.time.get_ticks()
+        self.cursor_speed = 500     # Интервал мигания (в мс)
+
+    
+        
+
+    def handle_event(self, event):
+        """Метод обрабатывает события ввода. Вызывать внутри for event in pygame.event.get()"""
+        if not self.enabled:
+            return
+
+        # Проверяем клик мыши для активации фокуса
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.rect.collidepoint(event.pos):
+                self.active = True
+                self.text = "" if self.text == "Сказать..." else self.text
+            else:
+                self.active = False
+
+        # Если поле «в фокусе», перехватываем клавиатуру
+        if self.active and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RETURN:
+                # Если нажали Enter и текст не пустой — отправляем данные в callback
+                if self.text.strip() and self.on_submit:
+                    self.on_submit(self.text)
+                    self.text = ""  # Очищаем поле после отправки
+            elif event.key == pygame.K_BACKSPACE:
+                # Удаляем последний символ
+                self.text = self.text[:-1]
+            else:
+                # Добавляем символ, если не превышен лимит
+                if len(self.text) < self.max_chars:
+                    # event.unicode содержит символ с учетом раскладки и Shift
+                    if event.unicode.isprintable() and event.unicode != "":
+                        self.text += event.unicode
+
+    def draw(self, surf):
+        """Отрисовка поля. Вызывать в блоке отрисовки экрана"""
+        if not self.enabled:
+            return
+        def cool_box(current_time):
+            if current_time - self.last_update >= self.speed:
+                r = random.randint(-2, 2)
+                self.img = pygame.transform.rotate(self.orig_img, r*2)
+                self.last_update = current_time
+                
+            # Центрирование картинки кнопки относительно её rect
+            img_w, img_h = self.img.get_width(), self.img.get_height()
+            pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
+                self.rect.y + self.rect.height // 2 - img_h // 2)
+            
+            surf.blit(self.img, pos)
+        # Меняем цвет рамки в зависимости от того, активен фокус или нет
+        box_color = (34, 3, 4) if self.active else (150, 150, 150) # dred или серый
+        
+        # Рисуем подложку (белый прямоугольник) и рамку
+        pygame.draw.rect(surf, (255, 255, 255), self.rect)
+        pygame.draw.rect(surf, box_color, self.rect, 2) # Толщина рамки 2 пикселя
+
+        current_time = pygame.time.get_ticks()
+
+        # Рендерим текст
+        text_surf = self.font.render(self.text, True, self.text_color)
+        
+        # Ограничиваем область отображения текста, чтобы он не вылезал за рамку поля
+        # Если текст длиннее поля, сдвигаем его влево (показываем конец строки)
+        text_width = text_surf.get_width()
+        max_visible_width = self.rect.width - 20
+        
+        if text_width > max_visible_width:
+            # Отрезаем кусок поверхности текста, который не влезает
+            sub_rect = pygame.Rect(text_width - max_visible_width, 0, max_visible_width, self.rect.height)
+            text_draw_surf = text_surf.subsurface(sub_rect)
+            text_x = self.rect.x + 10
+        else:
+            text_draw_surf = text_surf
+            text_x = self.rect.x + 10
+
+        # Рисуем текст на экране
+        text_y = self.rect.y + (self.rect.height // 2 - text_draw_surf.get_height() // 2)
+        surf.blit(text_draw_surf, (text_x, text_y))
+
+        # Логика мигания и отрисовки курсора (каретки)
+        if current_time - self.last_cursor_toggle >= self.cursor_speed:
+            self.cursor_visible = not self.cursor_visible
+            self.last_cursor_toggle = current_time
+
+        if self.active and self.cursor_visible:
+            # Считаем координату X для палочки курсора
+            cursor_x = text_x + min(text_width, max_visible_width) + 2
+            cursor_y_start = text_y
+            cursor_y_end = text_y + text_draw_surf.get_height()
+            pygame.draw.line(surf, self.text_color, (cursor_x, cursor_y_start), (cursor_x, cursor_y_end), 2)
 
 class PygameTextPrinter:
     def __init__(self, speed_ms=30):
@@ -195,15 +317,18 @@ btn_w = Button(100, 580, text="Запад", func=lambda : display_text.set_text(
 btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
 
+btn_save = Button(700, 20, text="Сохранить", func=lambda : display_text.set_text(novel.handle("save")["text"]) )
+
 btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_inventory())
 
-freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv])
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
 btn_hit = Button(500, 700, text="Ударить", func=lambda: open_player_weapons())
+input_field = TextInputField(300, 700, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
 
-battle = Menu([btn_run, btn_hit])
+battle = Menu([btn_run, btn_hit, input_field])
 
 items_menu = Menu([text_box_image]) 
 items_menu.enabled = False
@@ -289,7 +414,7 @@ def open_room_items():
 ###################### МОЛЕКС ТУТ БЛЯТЬ ФУНКЦИЯ АТАКИ
 
 def open_player_weapons():
-    battle.panels = [btn_run, btn_hit]
+    battle.panels = [btn_run, btn_hit, input_field]
     #items_menu.enabled = True
     raw_data = novel.handle("get_weapons")["text"]
     items_list = raw_data.split(";")
@@ -324,8 +449,8 @@ pygame.display.set_caption('Gay')
 
 clock = pygame.time.Clock()
 
-def fight(item_idx, name):
-    battle.panels = [btn_run, btn_hit]
+def fight(item_idx=None, name=None, text=""):
+    battle.panels = [btn_run, btn_hit, input_field]
     def fetch_ai_response():
         global is_loading
         
@@ -333,7 +458,10 @@ def fight(item_idx, name):
             is_loading = True
             battle.enabled = False
             # Тяжелый запрос к серверу (твой novel.handle внутри делает запрос к LLM)
-            res = novel.handle("fight_attack", payload=item_idx)
+            if(text == "" and item_idx != None):
+                res = novel.handle("fight_attack", payload=item_idx)
+            else:
+                res = novel.handle("fight_talk", payload=text)
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
         except Exception as e:
@@ -386,6 +514,10 @@ while True:
                     # Если движок переключился в режим боя
                     elif novel.state == "COMBAT":
                         battle.click(mouse_pos)
+        # ОБРАБОТКА КЛАВИАТУРЫ (для текстового ввода в бою)
+        
+        if novel.state == "COMBAT":
+            battle.any_event(event)
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
