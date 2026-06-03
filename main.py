@@ -2,7 +2,7 @@ import pygame
 import sys as sus
 #import websearch
 from rpnovel_engine import RPGNovel 
-#import io
+import os
 #import base64
 import random
 import threading
@@ -42,7 +42,7 @@ class Button:
         
         # Эффект покачивания (поворот оригинальной картинки, без накопления искажений)
         if current_time - self.last_update >= self.speed:
-            r = random.randint(-3, 3)
+            r = random.randint(-2, 2)
             self.img = pygame.transform.rotate(self.orig_img, r*2)
             self.last_update = current_time
             
@@ -63,7 +63,7 @@ class Button:
             self.text_surf = ui_font.render(current_text_string, True, (0, 0, 0))
             
         # Отрисовка текста по центру кнопки (или с фиксированным отступом)
-        surf.blit(self.text_surf, (self.rect.x + 45, self.rect.y + 8))
+        surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
 
 class Image:
     def __init__(self, x, y, img):
@@ -78,6 +78,7 @@ class Menu:
         self.enabled = True
 
     def draw(self, surf):
+        if not self.enabled: return
         for item in self.panels:
             if isinstance(item, Button):
                 item.draw(surf)
@@ -158,6 +159,10 @@ names_font = pygame.font.SysFont('Freeride', 35)
 # Загрузка ассетов (код напарника)
 nemo_image = pygame.image.load('assets/images/sprites/nemo.png')
 background_image = pygame.image.load('assets/images/fon.png')
+bgs = {}
+for location in novel.player.current_world.locations:
+    if os.path.exists(f'assets/images/locations/{location.id}.png'):
+        bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png')
 background_menu = pygame.image.load('assets/images/UI/menu_fon.png')
 text_box_image = pygame.image.load('assets/images/UI/button.png')
 
@@ -196,7 +201,7 @@ freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
-btn_hit = Button(500, 700, text="Ударить", func=lambda: fight())
+btn_hit = Button(500, 700, text="Ударить", func=lambda: open_player_weapons())
 
 battle = Menu([btn_run, btn_hit])
 
@@ -205,25 +210,33 @@ items_menu.enabled = False
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
-    res = novel.handle("take", str(item_index + 1))
+    res = novel.handle("take", str(item_index))
     display_text.set_text(res["text"])
     
+    close_items_menu()
     # Обновляем это же меню, заново запросив шмот из комнаты
-    room_data = novel.handle("checkroom_internal")["text"]
-    rebuild_items_menu(room_data, action_pick_up)
+    #room_data = novel.handle("checkroom_internal")["text"]
+    #rebuild_items_menu(room_data, action_pick_up)
 
 def action_inspect(item_index, item_name):
-    res = novel.handle("inspect", str(item_index + 1)) 
+    res = novel.handle("inspect", str(item_index)) 
     display_text.set_text(res["text"])
     
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
     close_items_menu()
 
+def action_drop_item(item_index, item_name):
+    # Предположим, у тебя на бэкенде есть команда "use" или "inspect"
+    res = novel.handle("drop", str(item_index )) 
+    display_text.set_text(res["text"])
+    
+    # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
+    close_items_menu()
 
 # Действие 2: Использовать/осмотреть предмет из личного инвентаря
 def action_use_item(item_index, item_name):
     # Предположим, у тебя на бэкенде есть команда "use" или "inspect"
-    res = novel.handle("usepotion", str(item_index + 1)) 
+    res = novel.handle("usepotion", str(item_index)) 
     display_text.set_text(res["text"])
     
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
@@ -260,15 +273,36 @@ def close_items_menu(dummy=None):
 
 def drop_buttons(item_idx, name):
     open_player_inventory()
-    items_menu.panels.append(Button(220, 20 + item_idx*50, text=f"Осмотреть {name}", func=lambda: action_inspect(item_idx, name)))
-    items_menu.panels.append(Button(420, 20 + item_idx*50, text=f"Использовать {name}", func=lambda: action_use_item(item_idx, name)))
+    items_menu.panels.append(Button(220, 20 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name)))
+    items_menu.panels.append(Button(420, 20 + item_idx*50, text=f"Использовать", func=lambda: action_use_item(item_idx, name)))
+    items_menu.panels.append(Button(620, 20 + item_idx*50, text=f"Выбросить", func=lambda: action_drop_item(item_idx, name)))
 
+
+    
 
 def open_room_items():
     items_menu.enabled = True
     room_data = novel.handle("checkroom_internal")["text"]
     # Строим меню предметов комнаты, при клике сработает подбор
     rebuild_items_menu(room_data, action_pick_up)
+
+###################### МОЛЕКС ТУТ БЛЯТЬ ФУНКЦИЯ АТАКИ
+
+def open_player_weapons():
+    battle.panels = [btn_run, btn_hit]
+    #items_menu.enabled = True
+    raw_data = novel.handle("get_weapons")["text"]
+    items_list = raw_data.split(";")
+    for i, item_name in enumerate(items_list):
+        # Передаем в callback-функцию индекс предмета и его имя
+        btn = Button(
+            500, 650 + i * -50, 
+            text=item_name, 
+            func=lambda item_idx=i, name=item_name: fight(item_idx, name)
+        )
+        battle.panels.append(btn)
+    print("Оружия???? Зачем тебе оружия, бака!! Ты кого убить там собрался???????? Н-но, держи, будь аккуратнее, с-семпай...") # why are you so tsundere
+    
 
 def open_player_inventory():
     items_menu.enabled = True
@@ -290,16 +324,16 @@ pygame.display.set_caption('Gay')
 
 clock = pygame.time.Clock()
 
-def fight():
+def fight(item_idx, name):
+    battle.panels = [btn_run, btn_hit]
     def fetch_ai_response():
         global is_loading
         
         try:
             is_loading = True
-            btn_attack.enabled = False
-            btn_run.enabled = False
+            battle.enabled = False
             # Тяжелый запрос к серверу (твой novel.handle внутри делает запрос к LLM)
-            res = novel.handle("fight_attack", payload=novel.player.inventory[0])
+            res = novel.handle("fight_attack", payload=item_idx)
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
         except Exception as e:
@@ -307,15 +341,14 @@ def fight():
         finally:
             # Выключаем режим загрузки, когда поток завершил работу
             is_loading = False
-            btn_attack.enabled = True
-            btn_run.enabled = True
+            battle.enabled = True
     is_loading = True
     display_text.set_text(f"{novel.current_enemy.name} думает...")
     threading.Thread(target=fetch_ai_response, daemon=True).start() 
 
 while True:
     mouse_pos = pygame.mouse.get_pos()
-    clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
+    #clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
     
     #тут херня с обновлением кадров анимации
     now = pygame.time.get_ticks()
@@ -366,8 +399,10 @@ while True:
         screen.fill((0, 0, 0))
         display_text.update()
         # Рисуем фон локации
-        screen.blit(background_image, (0.5 * weight - background_image.get_width() // 2, 0.5 * height - background_image.get_height() // 2 ))
-        
+        if novel.player.location not in bgs:
+            screen.blit(background_image, (0.5 * weight - background_image.get_width() // 2, 0.5 * height - background_image.get_height() // 2 ))
+        else:
+            screen.blit(bgs[novel.player.location], (0.5 * weight - bgs[novel.player.location].get_width() // 2, 0.5 * height - bgs[novel.player.location].get_height() // 2 ))
         # Рисуем Спрайты персонажей
         screen.blit(malex_anim[current_frame], (0.5 * weight - malex_anim[current_frame].get_width() // 2, 0.5 * height - malex_anim[current_frame].get_height() // 2 + 30))
 

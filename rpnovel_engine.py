@@ -155,8 +155,8 @@ class RPGNovel():
                         response["text"] = ("Нужно ввести номер.")
                         #end of code here!
                     choice = int(choice)
-                    if 1 <= choice <= len(player.inventory):
-                        item = player.inventory[choice - 1]
+                    if 0 <= choice <= len(player.inventory):
+                        item = player.inventory[choice]
                         response["text"] = f'{item.name} — {item.desc} - {getattr(item, "heal_power", 0)} ХП восттан. - {getattr(item, "damage", 0)} урона'
                 case "check":
                     text = ""
@@ -182,15 +182,15 @@ class RPGNovel():
                 case "take":
                     if payload.isdigit():
                         payload = int(payload)
-                        if 1 <= payload <= len(current_room.items):
-                            item = current_room.items.pop(payload - 1)
+                        if 0 <= payload <= len(current_room.items):
+                            item = current_room.items.pop(payload )
                             player.inventory.append(item)
                             response["text"] = f"Ты взял {item.name}"
                 case "drop":
                     if payload.isdigit():
                         payload = int(payload)
                         if 1 <= payload <= len(player.inventory):
-                            item = player.inventory.pop(payload - 1)
+                            item = player.inventory.pop(payload)
                             current_room.items.append(item)
                             response["text"] = f"Ты выбросил {item.name}"
 
@@ -211,8 +211,8 @@ class RPGNovel():
                         response["text"] = ("Нужно ввести номер.")
                         #end of code here!
                     choice = int(choice)
-                    if 1 <= choice <= len(player.inventory):
-                        item = player.inventory[choice - 1]
+                    if 0 <= choice <= len(player.inventory):
+                        item = player.inventory[choice]
                         if isinstance(item, Potion):
                             heal = item.heal_power
                             player.heal(heal)
@@ -246,9 +246,17 @@ class RPGNovel():
             if not hasattr(enemy, "npc_id"):
                 enemy.init_npc(self)
             match action:
+                case "get_weapons":
+                    weapons = [item for item in player.inventory if isinstance(item, Weapon)]
+                    if not weapons:
+                        response["text"] = ""
+                    else:
+                        response["text"] = ";".join([weapon.name for weapon in weapons])
+
                 case "fight_attack":
-                    # Payload — выбранное оружие
-                    weapon = payload 
+                    # Payload — выбранное оружие (index)
+                    weapons = [item for item in player.inventory if isinstance(item, Weapon)]
+                    weapon = weapons[payload] 
                     damage = weapon.damage
                     enemy.take_damage(damage)
                     
@@ -261,7 +269,7 @@ class RPGNovel():
                         self.current_enemy = None
                     else:
                         # Если враг жив, даем ему сходить (ИИ или автоатака)
-                        enemy_reply = enemy.send_message("[PLAYER ATTACKED ME]", self)
+                        enemy_reply = enemy.send_message(f"[Player ATTACKS YOU dealing {damage} damage. Your HP is {enemy.gethp()}]", self)
                         response["text"] += f"{enemy.name}: {enemy_reply}"
                         # Тут обрабатываешь теги [attack], [give] как у тебя было
                         if "[attack]" in enemy_reply:
@@ -472,12 +480,15 @@ SCRIPT
 
 DIALOGUE RULES:
 - Reply only with what {name} says.
-- Keep replies short, in-character, emotionally consistent.
+- Don't FUCKING forget that you are afraid of death if your HP is low
 - Slang, aggression, rudeness are allowed if appropriate.
 
 ACTION OUTPUT:
 At the END of your reply, optionally output EXACTLY ONE action token:
-[attack] [give] [run] [spare]
+[attack] - Attack the player
+[give] - Give the player an item from your inventory
+[run] - Run away from the fight, ending it immediately
+[spare] - Do nothing
 Do not explain actions.
 
 LANGUAGE:
@@ -683,7 +694,7 @@ world_zero = World([
         "pyaterochka", 
         "Пятерочка", 
         "Ох.. Пятерочка.. Когда наступают холода, ты заходишь в этот магазинчик.. Раньше ты очень любил это место пока тут не появился охранник по имени Дядь Юра. О, кстати, он тоже смотрит, точнее, следит за тобой!", 
-        {"запад": "playground", "север": "city"}, 
+        {"запад": "fountain", "север": "city"}, 
         [hleb, voda, doshik, rolton, nozh],
         [ 
         Enemy('Yura', 50, 25, """### РОЛЬ:
