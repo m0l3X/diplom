@@ -671,13 +671,14 @@ class World():
         locations = [Location.from_dict(loc) for loc in decoded_data["locations"]]
         return cls(locations)
 class Location():
-    def __init__(self, id, name, description, exits, items=[], enemies=[]):
+    def __init__(self, id, name, description, exits, items=[], enemies=[], spec={}):
         self.id = id
         self.name = name
         self.description = description
         self.exits = exits
         self.items = items
         self.enemies = enemies
+        self.special_flags = spec
     def get_enemy(self, id):
         for enemy in self.enemies:
             if enemy.name == id:
@@ -689,13 +690,15 @@ class Location():
             "description": self.description,
             "exits": self.exits,
             "items": [item.to_dict() for item in self.items],
-            "enemies": [enemy.to_dict() for enemy in self.enemies] 
+            "enemies": [enemy.to_dict() for enemy in self.enemies] ,
+            "special_flags": json.dumps(self.special_flags)
         }
     @classmethod
     def from_dict(cls, data):
         items = [Item.from_dict(item) for item in data["items"]]
         enemies = [Enemy.from_dict(enemy) for enemy in data["enemies"]]
-        return cls(data["id"], data["name"], data["description"], data["exits"], items, enemies)
+        spec = json.loads(data["special_flags"]) if "special_flags" in data.keys() else {}
+        return cls(data["id"], data["name"], data["description"], data["exits"], items, enemies, spec)
 world_zero = World([
     Location(
         "start", 
@@ -802,99 +805,137 @@ if __name__ == "__main__":
 
     # Предположим, у игрока уже есть нож в инвентаре для теста
     name = input("Кто ты? \n > ")
-    if name == "KETHER":
-        novel = RPGNovel("KETHER")
-        novel.player.inventory.append(nozh)
-        novel.player.location = "start" # стартовая комната
-
-        world = World([Location("start", "Старт", "Пустая комната", {}, [])])
-        novel.player.current_world = world
-        print("=" * 50)
-        print(" СИСТЕМА СОЗДАНИЯ МИРОВ (WORLD MACHINE) РАБОТАЕТ")
-        print("=" * 50)
-        name,id = db.handle(f"FIND Players name KETHER") 
-        if name != "Fuck you":
-            print("ОБНАРУЖЕН СУЩЕСТВУЮЩИЙ СЕЙВ!!!!!!!!! ЗАГРУЗИСЬ ПОКА НЕ ПОЗДНО")
-        while True:
-            print(f"\n--- Локация: {novel.player.location} --- \n {novel.get_player_location()[0]} \n HP: {novel.get_player_location()[1]} \n Инвентарь: {novel.get_player_location()[2]}")
-            print("Доступные команды: (стороны света), inv, exit, save, addloc, modifyloc, additem, addenemy additemtoenemy, getroomdata, removeenemy, removeitem, removeloc")
+    novel = RPGNovel(name)
+    novel.player.inventory.append(nozh)
+    novel.player.location = "start" # стартовая комната
+    world = World([Location("start", "Старт", "Пустая комната", {}, [])])
+    novel.player.current_world = world
+    print("=" * 50)
+    print(" СИСТЕМА СОЗДАНИЯ МИРОВ (WORLD MACHINE) РАБОТАЕТ")
+    print("=" * 50)
+    name,id = db.handle(f"FIND Players name {name}") 
+    if name != "Fuck you":
+        print("ОБНАРУЖЕН СУЩЕСТВУЮЩИЙ СЕЙВ!!!!!!!!! ЗАГРУЗИСЬ ПОКА НЕ ПОЗДНО")
+    while True:
+        print(f"\n--- Локация: {novel.player.location} --- \n {novel.get_player_location()[0]} \n HP: {novel.get_player_location()[1]} \n Инвентарь: {novel.get_player_location()[2]}")
+        print("Доступные команды: (стороны света), inv, exit, save, addloc, modifyloc, additem, addenemy additemtoenemy, getroomdata, removeenemy, removeitem, removeloc")
+        
+        user_input = input("Ввод > ").strip().split()
+        if not user_input:
+            continue
             
-            user_input = input("Ввод > ").strip().split()
-            if not user_input:
-                continue
-                
-            command = user_input[0].lower()
-            payload = user_input[1] if len(user_input) > 1 else user_input[1:]
-
-            if command == "exit":
-                print("Выход из тестового режима.")
-                break
-                
-            elif command == "север" or command == "юг" or command == "восток" or command == "запад":
-                # Передаем команду движения (например: move pyaterochka)
-                res = novel.handle("move", payload=command)
-                print(res["text"])
-                
-            elif command == "inv":
-                res = novel.handle("inv")
-                print(res["text"])
-            elif command == "addloc":
-                loc_id = input("ID новой локации: ")
-                loc_name = input("Название новой локации: ")
-                loc_desc = input("Описание новой локации: ")
-                loc_dir = input("Направление в котором будет новая локация от текущей (север, юг, восток, запад): ")
-                counterpart_dirs = {
-                    "север": "юг",
-                    "юг": "север",
-                    "восток": "запад",
-                    "запад": "восток"
-                }
-                new_location = Location(loc_id, loc_name, loc_desc, {counterpart_dirs[loc_dir]: novel.player.location})
-                novel.player.current_world.locations.append(new_location)
-                lena, max, canon, cur_loc = novel.get_player_location()
-                cur_loc.exits[loc_dir] = loc_id
-
-                print(f"Локация '{loc_name}' добавлена в мир.")
-            elif command == "modifyloc":
-                loc_id = input("ID локации для изменения (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
+        command = user_input[0].lower()
+        payload = user_input[1] if len(user_input) > 1 else user_input[1:]
+        if command == "exit":
+            print("Выход из тестового режима.")
+            break
+            
+        elif command == "север" or command == "юг" or command == "восток" or command == "запад":
+            # Передаем команду движения (например: move pyaterochka)
+            res = novel.handle("move", payload=command)
+            print(res["text"])
+            
+        elif command == "inv":
+            res = novel.handle("inv")
+            print(res["text"])
+        elif command == "addloc":
+            loc_id = input("ID новой локации: ")
+            loc_name = input("Название новой локации: ")
+            loc_desc = input("Описание новой локации: ")
+            loc_dir = input("Направление в котором будет новая локация от текущей (север, юг, восток, запад): ")
+            counterpart_dirs = {
+                "север": "юг",
+                "юг": "север",
+                "восток": "запад",
+                "запад": "восток"
+            }
+            new_location = Location(loc_id, loc_name, loc_desc, {counterpart_dirs[loc_dir]: novel.player.location})
+            novel.player.current_world.locations.append(new_location)
+            lena, max, canon, cur_loc = novel.get_player_location()
+            cur_loc.exits[loc_dir] = loc_id
+            print(f"Локация '{loc_name}' добавлена в мир.")
+        elif command == "modifyloc":
+            loc_id = input("ID локации для изменения (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                new_id = input("Новый ID локации (оставь пустым, чтобы не менять): ")
+                if new_id.strip() != "":
+                    location.id = new_id
+                    for loc in novel.player.current_world.locations:
+                        for dir, exit_id in loc.exits.items():
+                            if exit_id == loc_id:
+                                loc.exits[dir] = new_id
+                    if loc_id.strip() == "":
+                        novel.player.location = new_id
+                        
+                new_name = input("Новое название локации: ")
+                if new_name.strip() != "":
+                    location.name = new_name
+                new_desc = input("Новое описание локации: ")
+                if new_desc.strip() != "":
+                    location.description = new_desc
+                new_exits = input("Новые выходы (формат: направление:id, разделяй запятой, оставь пустым чтобы не менять): ")
+                if new_exits.strip() != "":
+                    exits_dict = {}
+                    for exit_pair in new_exits.split(","):
+                        dir, exit_id = exit_pair.split(":")
+                        exits_dict[dir.strip()] = exit_id.strip()
+                    location.exits = exits_dict
+                print(f"Локация '{location.name}' обновлена.")
+            else:
+                print("Локация не найдена.")
+        elif command == "additem":
+            loc_id = input("ID локации для добавления предмета (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                item_id = input("ID предмета: ")
+                item_name = input("Название предмета: ")
+                item_desc = input("Описание предмета: ")
+                item_type = input("Тип предмета (обычный, оружие, зелье): ").lower()
+                if item_type == "оружие":
+                    damage = int(input("Урон оружия: "))
+                    new_item = Weapon(item_id, item_name, item_desc, damage)
+                elif item_type == "зелье":
+                    heal_power = int(input("Сила лечения зелья: "))
+                    new_item = Potion(item_id, item_name, item_desc, heal_power)
                 else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    new_id = input("Новый ID локации (оставь пустым, чтобы не менять): ")
-                    if new_id.strip() != "":
-                        location.id = new_id
-                        for loc in novel.player.current_world.locations:
-                            for dir, exit_id in loc.exits.items():
-                                if exit_id == loc_id:
-                                    loc.exits[dir] = new_id
-                        if loc_id.strip() == "":
-                            novel.player.location = new_id
-                            
-                    new_name = input("Новое название локации: ")
-                    if new_name.strip() != "":
-                        location.name = new_name
-                    new_desc = input("Новое описание локации: ")
-                    if new_desc.strip() != "":
-                        location.description = new_desc
-                    new_exits = input("Новые выходы (формат: направление:id, разделяй запятой, оставь пустым чтобы не менять): ")
-                    if new_exits.strip() != "":
-                        exits_dict = {}
-                        for exit_pair in new_exits.split(","):
-                            dir, exit_id = exit_pair.split(":")
-                            exits_dict[dir.strip()] = exit_id.strip()
-                        location.exits = exits_dict
-                    print(f"Локация '{location.name}' обновлена.")
-                else:
-                    print("Локация не найдена.")
-            elif command == "additem":
-                loc_id = input("ID локации для добавления предмета (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
-                else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
+                    new_item = Item(item_id, item_name, item_desc)
+                location.items.append(new_item)
+                print(f"Предмет '{item_name}' добавлен в локацию '{location.name}'.")
+            else:
+                print("Локация не найдена.")
+        elif command == "addenemy":
+            loc_id = input("ID локации для добавления врага (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                enemy_name = input("Имя врага: ")
+                enemy_hp = int(input("HP врага: "))
+                enemy_dmg = int(input("Урон врага: "))
+                enemy_backstory = input("Бэкстори врага: ")
+                new_enemy = Enemy(enemy_name, enemy_hp, enemy_dmg, enemy_backstory)
+                location.enemies.append(new_enemy)
+                print(f"Враг '{enemy_name}' добавлен в локацию '{location.name}'.")
+            else:
+                print("Локация не найдена.")
+        elif command == "additemtoenemy":
+            loc_id = input("ID локации, где находится враг (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                enemy_name = input("Имя врага для добавления предмета: ")
+                enemy = location.get_enemy(enemy_name)
+                if enemy:
                     item_id = input("ID предмета: ")
                     item_name = input("Название предмета: ")
                     item_desc = input("Описание предмета: ")
@@ -907,205 +948,83 @@ if __name__ == "__main__":
                         new_item = Potion(item_id, item_name, item_desc, heal_power)
                     else:
                         new_item = Item(item_id, item_name, item_desc)
-                    location.items.append(new_item)
-                    print(f"Предмет '{item_name}' добавлен в локацию '{location.name}'.")
+                    enemy.inventory.append(new_item)
+                    print(f"Предмет '{item_name}' добавлен в инвентарь врага '{enemy.name}'.")
                 else:
-                    print("Локация не найдена.")
-            elif command == "addenemy":
-                loc_id = input("ID локации для добавления врага (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
+                    print("Враг не найден.")
+            else:
+                print("Локация не найдена.")
+        elif command == "getworld":
+            world_data = novel.player.current_world.generate_map_positions(novel.player.visited_locations)
+            print(world_data)
+        elif command == "getroomdata":
+            loc_id = input("ID локации для получения данных (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                print(f"Локация: {location.name}\nОписание: {location.description}\nВыходы: {location.exits}\nПредметы: {[item.name for item in location.items]}\nВраги: {[enemy.name for enemy in location.enemies]}")
+            else:
+                print("Локация не найдена.")
+        elif command == "removeenemy":
+            loc_id = input("ID локации для удаления врага (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                enemy_name = input("Имя врага для удаления: ")
+                enemy = location.get_enemy(enemy_name)
+                if enemy:
+                    location.enemies.remove(enemy)
+                    print(f"Враг '{enemy_name}' удален из локации '{location.name}'.")
                 else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    enemy_name = input("Имя врага: ")
-                    enemy_hp = int(input("HP врага: "))
-                    enemy_dmg = int(input("Урон врага: "))
-                    enemy_backstory = input("Бэкстори врага: ")
-                    new_enemy = Enemy(enemy_name, enemy_hp, enemy_dmg, enemy_backstory)
-                    location.enemies.append(new_enemy)
-                    print(f"Враг '{enemy_name}' добавлен в локацию '{location.name}'.")
+                    print("Враг не найден.")
+            else:
+                print("Локация не найдена.")
+        elif command == "removeitem":
+            loc_id = input("ID локации для удаления предмета (пусто если текущую): ")
+            if loc_id.strip() == "":
+                a,b,c,location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                item_name = input("ID предмета для удаления: ")
+                item_to_remove = None
+                for item in location.items:
+                    if item.id == item_name:
+                        item_to_remove = item
+                        break
+                if item_to_remove:
+                    location.items.remove(item_to_remove)
+                    print(f"Предмет '{item_name}' удален из локации '{location.name}'.")
                 else:
-                    print("Локация не найдена.")
-            elif command == "additemtoenemy":
-                loc_id = input("ID локации, где находится враг (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
-                else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    enemy_name = input("Имя врага для добавления предмета: ")
-                    enemy = location.get_enemy(enemy_name)
-                    if enemy:
-                        item_id = input("ID предмета: ")
-                        item_name = input("Название предмета: ")
-                        item_desc = input("Описание предмета: ")
-                        item_type = input("Тип предмета (обычный, оружие, зелье): ").lower()
-                        if item_type == "оружие":
-                            damage = int(input("Урон оружия: "))
-                            new_item = Weapon(item_id, item_name, item_desc, damage)
-                        elif item_type == "зелье":
-                            heal_power = int(input("Сила лечения зелья: "))
-                            new_item = Potion(item_id, item_name, item_desc, heal_power)
-                        else:
-                            new_item = Item(item_id, item_name, item_desc)
-                        enemy.inventory.append(new_item)
-                        print(f"Предмет '{item_name}' добавлен в инвентарь врага '{enemy.name}'.")
-                    else:
-                        print("Враг не найден.")
-                else:
-                    print("Локация не найдена.")
-            elif command == "getworld":
-                world_data = novel.player.current_world.generate_map_positions(novel.player.visited_locations)
-                print(world_data)
-            elif command == "getroomdata":
-                loc_id = input("ID локации для получения данных (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
-                else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    print(f"Локация: {location.name}\nОписание: {location.description}\nВыходы: {location.exits}\nПредметы: {[item.name for item in location.items]}\nВраги: {[enemy.name for enemy in location.enemies]}")
-                else:
-                    print("Локация не найдена.")
-            elif command == "removeenemy":
-                loc_id = input("ID локации для удаления врага (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
-                else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    enemy_name = input("Имя врага для удаления: ")
-                    enemy = location.get_enemy(enemy_name)
-                    if enemy:
-                        location.enemies.remove(enemy)
-                        print(f"Враг '{enemy_name}' удален из локации '{location.name}'.")
-                    else:
-                        print("Враг не найден.")
-                else:
-                    print("Локация не найдена.")
-            elif command == "removeitem":
-                loc_id = input("ID локации для удаления предмета (пусто если текущую): ")
-                if loc_id.strip() == "":
-                    a,b,c,location = novel.get_player_location()
-                else:
-                    location = novel.player.current_world.get_location(loc_id)
-                if location:
-                    item_name = input("ID предмета для удаления: ")
-                    item_to_remove = None
-                    for item in location.items:
-                        if item.id == item_name:
-                            item_to_remove = item
-                            break
-                    if item_to_remove:
-                        location.items.remove(item_to_remove)
-                        print(f"Предмет '{item_name}' удален из локации '{location.name}'.")
-                    else:
-                        print("Предмет не найден.")
-                else:
-                    print("Локация не найдена.")
-            elif command == "removeloc":
-                loc_id = input("ID локации для удаления: ")
-                location_to_remove = novel.player.current_world.get_location(loc_id)
-                if location_to_remove:
-                    novel.player.current_world.locations.remove(location_to_remove)
-                    # Удаляем все ссылки на эту локацию из выходов других локаций
-                    for loc in novel.player.current_world.locations:
-                        exits_to_remove = [dir for dir, exit_id in loc.exits.items() if exit_id == loc_id]
-                        for dir in exits_to_remove:
-                            del loc.exits[dir]
-                    print(f"Локация с ID '{loc_id}' удалена.")
-                else:
-                    print("Локация не найдена.")
-            elif command == "save":
-                novel.handle("save")
-                print("Игра сохранена.")
-            elif command == "load":
-                novel.handle("load")
-                print("Игра загружена.")
-            elif command == "dumpworld":
-                print(novel.player.current_world.to_dict())
-    else:
-
-        novel = RPGNovel(name)
-        novel.player.inventory.append(nozh)
-        novel.player.location = "start" # стартовая комната
-
-        print("=" * 50)
-        print(" СИСТЕМА ПЕРЕКЛЮЧЕНИЯ СОСТОЯНИЙ (STATE MACHINE) РАБОТАЕТ")
-        print("=" * 50)
-
-        # 2. Главный цикл ввода-вывода
-        while True:
-            current_state = novel.state # Движок сам знает, в каком он состоянии
-
-            if current_state == "EXPLORING":
-                print(f"\n--- [РЕЖИМ МИРА] Локация: {novel.player.location} --- \n {novel.get_player_location()[0]} \n HP: {novel.get_player_location()[1]} \n Инвентарь: {novel.get_player_location()[2]}")
-                print("Доступные команды: move <название>, inv, attack <номер_врага>, exit")
-                
-                user_input = input("Ввод > ").strip().split(maxsplit=1)
-                if not user_input:
-                    continue
-                    
-                command = user_input[0].lower()
-                payload = user_input[1] if len(user_input) > 1 else None
-
-                if command == "exit":
-                    print("Выход из тестового режима.")
-                    break
-                    
-                elif command == "move":
-                    # Передаем команду движения (например: move pyaterochka)
-                    res = novel.handle("move", payload=payload)
-                    print(res["text"])
-                    
-                elif command == "inv":
-                    res = novel.handle("inv")
-                    print(res["text"])
-                    
-                elif command == "attack":
-                    # Передаем индекс врага (например: attack 1)
-                    res = novel.handle("start_combat", payload=payload)
-                    print(res["text"])
-                    print(res["extra_data"])
-                
-                else:
-                    res = novel.handle(command, payload=payload)
-                    print(res["text"])
-                    print(res["extra_data"])
-
-            elif current_state == "COMBAT":
-                print(f"\n--- [РЕЖИМ БОЯ] Враг: {novel.current_enemy.name} ---")
-                print("Доступные команды: strike, run ИЛИ сказать что то (просто текст)")
-                
-                user_input = input("Бой > ").strip().split(maxsplit=1)
-                if not user_input:
-                    continue
-
-                command = user_input[0].lower()
-                payload = user_input[1] if len(user_input) > 1 else None
-
-                if command == "strike":
-                    # Ищем первое попавшееся оружие в инвентаре для теста
-                    weapons = [i for i in novel.player.inventory if hasattr(i, 'damage')]
-                    if weapons:
-                        res = novel.handle("fight_attack", payload=weapons[payload])
-                        print(res["text"])
-                        # Если бой еще идет, выводим хп из extra_data
-                        if "player_hp" in res.get("extra_data", {}):
-                            print(f"[ HP: {res['extra_data']['player_hp']} | Враг HP: {res['extra_data']['enemy_hp']} ]")
-                    else:
-                        print("У тебя нет оружия! Попробуй поговорить (talk).")
-                                            
-                elif command == "run":
-                    print(novel.adapt_story(novel.current_enemy))
-                    res = novel.handle("fight_run")
-                    print(res["text"])
-                else:
-                    res = novel.handle("fight_talk", payload=payload)
-                    print(res["text"])
-                    if "player_hp" in res.get("extra_data", {}):
-                        print(f"[ HP: {res['extra_data']['player_hp']} | Враг HP: {res['extra_data']['enemy_hp']} ]")
+                    print("Предмет не найден.")
+            else:
+                print("Локация не найдена.")
+        elif command == "removeloc":
+            loc_id = input("ID локации для удаления: ")
+            location_to_remove = novel.player.current_world.get_location(loc_id)
+            if location_to_remove:
+                novel.player.current_world.locations.remove(location_to_remove)
+                # Удаляем все ссылки на эту локацию из выходов других локаций
+                for loc in novel.player.current_world.locations:
+                    exits_to_remove = [dir for dir, exit_id in loc.exits.items() if exit_id == loc_id]
+                    for dir in exits_to_remove:
+                        del loc.exits[dir]
+                print(f"Локация с ID '{loc_id}' удалена.")
+            else:
+                print("Локация не найдена.")
+        elif command == "save":
+            novel.handle("save")
+            print("Игра сохранена.")
+        elif command == "load":
+            novel.handle("load")
+            print("Игра загружена.")
+        elif command == "dumpworld":
+            print(novel.player.current_world.to_dict())
+    
 
 
     

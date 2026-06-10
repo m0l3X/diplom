@@ -12,8 +12,12 @@ btn = pygame.image.load('assets/images/UI/buttonmini.png')
 class Button:
     def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button")):
         # Если img не передан, используем дефолтный (предполагается, что дефолтный btn загружен глобально)
-        self.orig_img = img if img else btn 
-        self.img = self.orig_img
+        if img != "no":
+            self.orig_img = img if img else btn 
+            self.img = self.orig_img
+        else:
+            self.orig_img = None
+            self.img = None
         
         # Задаем размеры rect
         width = w if w else self.img.get_width()
@@ -35,7 +39,7 @@ class Button:
         self.func = func
 
     def draw(self, surf):
-        if not self.enabled:
+        if not self.enabled or self.img is None:
             return  # Просто не рисуем и не обновляем, если кнопка выключена
             
         current_time = pygame.time.get_ticks()
@@ -394,6 +398,7 @@ names_font = pygame.font.SysFont('Freeride', 35)
 nemo_image = pygame.image.load('assets/images/sprites/nemo.png')
 background_image = pygame.image.load('assets/images/fon.png')
 bgs = {}
+novel.handle("load")
 for location in novel.player.current_world.locations:
     if os.path.exists(f'assets/images/locations/{location.id}.png'):
         bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png')
@@ -419,10 +424,12 @@ malex_anim = [
 
 malex_img = Image(0, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
 
-btn_n = Button(100, 700, text="Север", func=lambda : display_text.set_text(novel.handle("move","север")["text"]) )
-btn_s = Button(100, 660, text="Юг", func=lambda : display_text.set_text(novel.handle("move","юг")["text"]) )
-btn_e = Button(100, 620, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]) )
-btn_w = Button(100, 580, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]) )
+ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
+
+btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : display_text.set_text(novel.handle("move","север")["text"]), img="no" )
+btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : display_text.set_text(novel.handle("move","юг")["text"]), img="no" )
+btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]), img="no" )
+btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]), img="no" )
 
 btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
@@ -433,7 +440,7 @@ btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_
 
 btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'enabled', True))
 
-freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map])
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
