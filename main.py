@@ -422,8 +422,8 @@ malex_anim = [
 ]
 # переменніе для управления таймингом анимации
 
-malex_img = Image(-500, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
-bg_img = Image(1000, 0, background_image)
+malex_img = Image(0, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
+bg_img = Image(0, 0, background_image)
 
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
@@ -469,7 +469,7 @@ btn_close_map = Button(20, 20, text="X", func=lambda: setattr(map_menu, 'enabled
 map_menu = Menu([ingame_map,btn_close_map])
 map_menu.enabled = False
 
-btn_spec = Button(300, 700, text="==>", func=lambda: action_special())
+btn_spec = Button(120, 700, text="==>", func=lambda: action_special())
 intro_menu = Menu([btn_spec])
 
 def action_special():
@@ -646,6 +646,9 @@ while True:
                 if click_zone.collidepoint(mouse_pos):
                     res = novel.handle("load") # Получаем описание локации при входе в игру
                     display_text.set_text(res["text"])
+                    special_flags = novel.get_player_location().special_flags
+                    malex_img.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
+                    bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
                     current_scene = "intro"
                     
             elif current_scene == "intro":
@@ -729,5 +732,9 @@ while True:
                 screen.blit(enemy_hp_text, (780, 160))
         items_menu.draw(screen)
         map_menu.draw(screen)
+        if "pyat" in novel.player.location:
+            btn_spec.draw(screen)
+        if "intro" in novel.player.location:
+            current_scene = "intro"
 
     pygame.display.flip()
