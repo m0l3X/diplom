@@ -134,6 +134,7 @@ class Menu:
 
     def click(self, mouse_pos):
         if not self.enabled: return
+        reset_afk()
         for btn in self.panels:
             if isinstance(btn, Button):
                 # Проверяем активность кнопки ДО проверки коллизии
@@ -156,7 +157,7 @@ class Menu:
                 btn.handle_event(event)
 
 class TextInputField:
-    def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, max_chars=50, on_submit=None):
+    def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, max_chars=500, on_submit=None):
         self.orig_img = img if img else btn 
         self.img = self.orig_img
         self.last_update = 0
@@ -242,14 +243,14 @@ class TextInputField:
         text_width = text_surf.get_width()
         max_visible_width = self.rect.width - 20
         
-        if text_width > max_visible_width:
-            # Отрезаем кусок поверхности текста, который не влезает
-            sub_rect = pygame.Rect(text_width - max_visible_width, 0, max_visible_width, self.rect.height)
-            text_draw_surf = text_surf.subsurface(sub_rect)
-            text_x = self.rect.x + 10
-        else:
-            text_draw_surf = text_surf
-            text_x = self.rect.x + 10
+        #if text_width > max_visible_width:
+        #    # Отрезаем кусок поверхности текста, который не влезает
+        #    sub_rect = pygame.Rect(text_width - max_visible_width, 0, max_visible_width, self.rect.height)
+        #    text_draw_surf = text_surf.subsurface(sub_rect)
+        #    text_x = self.rect.x + 10
+        #else:
+        text_draw_surf = text_surf
+        text_x = self.rect.x + 10
 
         # Рисуем текст на экране
         text_y = self.rect.y + (self.rect.height // 2 - text_draw_surf.get_height() // 2)
@@ -458,9 +459,9 @@ btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'en
 freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
-btn_run = Button(100, 700, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
-btn_hit = Button(500, 700, text="Ударить", func=lambda: open_player_weapons())
-input_field = TextInputField(300, 700, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
+btn_hit = Button(220, 240, text="Ударить", func=lambda: open_player_weapons())
+btn_run = Button(220, 320, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
+input_field = TextInputField(220, 400, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
 
 battle = Menu([btn_run, btn_hit, input_field])
 
@@ -580,7 +581,7 @@ def open_player_weapons():
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
         btn = Button(
-            500, 650 + i * -50, 
+            220, 190 + i * -50, 
             text=item_name, 
             func=lambda item_idx=i, name=item_name: fight(item_idx, name)
         )
@@ -608,6 +609,12 @@ screen = pygame.display.set_mode((weight, height))
 pygame.display.set_caption('Gay')
 
 clock = pygame.time.Clock()
+
+def reset_afk():
+    global yo
+    yo = False
+    global start_time
+    start_time = pygame.time.get_ticks()
 
 def fight(item_idx=None, name=None, text=""):
     battle.panels = [btn_run, btn_hit, input_field]
@@ -709,8 +716,7 @@ while True:
         screen.blit(text_surface, (120, 560))  
         if "intro" not in novel.player.location:
             current_scene = "game"
-            yo = False
-            start_time = pygame.time.get_ticks()
+            
     elif current_scene == "game":
         screen.fill((0, 0, 0))
         display_text.update()

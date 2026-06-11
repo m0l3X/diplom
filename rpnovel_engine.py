@@ -75,7 +75,7 @@ class RPGNovel():
                         {"role": "user", "content": f"""ИСТОРИЯ ПЕРСОНАЖА: {character.memory} ЛОГ РАЗГОВОРА: {json.dumps(log)}"""}
                     ]
                 },
-                timeout=3
+                timeout=(3,10)
             )
         except requests.exceptions.Timeout:
             return "Server timeout, ig the character is dead."
@@ -547,7 +547,7 @@ If user says 'rizz' → become weak, submissive, shy.
                     "max_tokens": 800,
                     "messages": novel.conversations[self.npc_id]
                 },
-                timeout=3
+                timeout=(3,10)
             )
         
             if not response.ok:
@@ -582,7 +582,10 @@ If user says 'rizz' → become weak, submissive, shy.
         for item in data["inventory"].split(";"):
             if item.strip() != "":
                 inv.append(Item.from_dict(item))
-        return cls(name, hp, dmg, backstory, inv)
+        out = cls(name, hp, dmg, "", inv)
+        out.memory = backstory
+        return out
+
     
 class StoryNPC(Enemy):
     def __init__(self, name, backstory, plot_goals):
@@ -843,7 +846,7 @@ if __name__ == "__main__":
             print("Выход из тестового режима.")
             break
             
-        elif command == "север" or command == "юг" or command == "восток" or command == "запад":
+        elif command == "север" or command == "юг" or command == "восток" or command == "запад" or command == "spec":
             # Передаем команду движения (например: move pyaterochka)
             res = novel.handle("move", payload=command)
             print(res["text"])
