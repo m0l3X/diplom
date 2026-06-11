@@ -133,6 +133,7 @@ class Menu:
                 item.draw(surf)
 
     def click(self, mouse_pos):
+        if not self.enabled: return
         for btn in self.panels:
             if isinstance(btn, Button):
                 # Проверяем активность кнопки ДО проверки коллизии
@@ -427,7 +428,7 @@ malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png')
 # переменніе для управления таймингом анимации
 
 malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall,malex_fall]], animation_speed=600, anim=True)
-bg_img = Image(0, 0, background_image)
+bg_img = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image)
 
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
@@ -477,6 +478,7 @@ def action_special():
     res = novel.handle("move", "spec")
     display_text.set_text(res["text"])
     special_flags = novel.get_player_location().special_flags
+    bg_img.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image
     malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000) if "MX" in special_flags.keys()  else ""
     malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
     bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000) if "BGX" in special_flags.keys() else ""
@@ -667,8 +669,8 @@ while True:
                     # Если мы в обычном режиме исследования
                     if novel.state == "EXPLORING":
                         freeroam.click(mouse_pos)
-                        if btn_spec.enabled and btn_spec.rect.collidepoint(mouse_pos):
-                            btn_spec.func()
+                        if btn_spec.enabled:
+                            intro_menu.click(mouse_pos)
                         
 
                     # Если движок переключился в режим боя
