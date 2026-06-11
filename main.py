@@ -422,7 +422,9 @@ malex_anim = [
 ]
 # переменніе для управления таймингом анимации
 
-malex_img = Image(0, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
+malex_img = Image(-500, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
+bg_img = Image(1000, 0, background_image)
+
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
 
@@ -466,6 +468,16 @@ ingame_map = VisualMap(x=200, y=150, w=600, h=400)
 btn_close_map = Button(20, 20, text="X", func=lambda: setattr(map_menu, 'enabled', False))
 map_menu = Menu([ingame_map,btn_close_map])
 map_menu.enabled = False
+
+btn_spec = Button(300, 700, text="==>", func=lambda: action_special())
+intro_menu = Menu([btn_spec])
+
+def action_special():
+    res = novel.handle("move", "spec")
+    display_text.set_text(res["text"])
+    special_flags = novel.get_player_location().special_flags
+    malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000) if "MX" in special_flags.keys()  else ""
+    bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000) if "BGX" in special_flags.keys() else ""
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
@@ -634,9 +646,11 @@ while True:
                 if click_zone.collidepoint(mouse_pos):
                     res = novel.handle("load") # Получаем описание локации при входе в игру
                     display_text.set_text(res["text"])
-                    current_scene = "game"
+                    current_scene = "intro"
                     
-                    
+            elif current_scene == "intro":
+                intro_menu.click(mouse_pos)
+
             # КЛИКИ ВНУТРИ ИГРЫ (Связь с бэкендом)
             elif current_scene == "game":
                 if(items_menu.enabled):
@@ -665,7 +679,18 @@ while True:
             screen.blit(button_playh, (button_x, button_y)) 
         else:
             screen.blit(button_play, (button_x, button_y))  
-            
+    elif current_scene == "intro":
+        screen.fill((0, 0, 0))
+        display_text.update()
+        bg_img.draw(screen)
+        malex_img.draw(screen)
+        
+        screen.blit(text_box_image, (0.5 * weight - text_box_image.get_width() // 2 - 10, 0.5 * height - text_box_image.get_height() // 2 + 30)) # Рисуем текстуру плашки поверх
+        intro_menu.draw(screen)
+        text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
+        screen.blit(text_surface, (120, 560))  
+        if novel.player.location == "start":
+            current_scene = "game"
     elif current_scene == "game":
         screen.fill((0, 0, 0))
         display_text.update()

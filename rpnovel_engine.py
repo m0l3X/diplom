@@ -612,8 +612,9 @@ bum3 = Item('bum3','порванная бумажка 3', 'что-то тебе 
 
 
 class World():
-    def __init__(self, locations):
+    def __init__(self, locations, name="Zero"):
         self.locations = locations
+        self.name = name
     def get_location(self, id):
         for loc in self.locations:
             if loc.id == id:
@@ -621,6 +622,7 @@ class World():
         return None
     def to_dict(self):
         out = {
+            "name": self.name,
             "locations": [loc.to_dict() for loc in self.locations]
         }
         return base64.b64encode(json.dumps(out).encode('utf-8')).decode('utf-8')
@@ -669,7 +671,7 @@ class World():
     def from_dict(cls, data):
         decoded_data = json.loads(base64.b64decode(data).decode('utf-8'))
         locations = [Location.from_dict(loc) for loc in decoded_data["locations"]]
-        return cls(locations)
+        return cls(locations,decoded_data["name"])
 class Location():
     def __init__(self, id, name, description, exits, items=None, enemies=None, spec=None):
         self.id = id
@@ -850,7 +852,8 @@ if __name__ == "__main__":
                 "север": "юг",
                 "юг": "север",
                 "восток": "запад",
-                "запад": "восток"
+                "запад": "восток",
+                "spec": "spec"
             }
             new_location = Location(loc_id, loc_name, loc_desc, {counterpart_dirs[loc_dir]: novel.player.location})
             novel.player.current_world.locations.append(new_location)
@@ -1019,7 +1022,7 @@ if __name__ == "__main__":
                 print(f"Локация с ID '{loc_id}' удалена.")
             else:
                 print("Локация не найдена.")
-        elif command == "write_special_flags":
+        elif command == "write_special_flags" or command == "wsf":
             loc_id = input("ID локации для добавления предмета (пусто если текущую): ")
             if loc_id.strip() == "":
                 location = novel.get_player_location()
@@ -1035,6 +1038,20 @@ if __name__ == "__main__":
                 print(f"Флаги '{inp}' добавлены в локацию '{location.name}'.")
             else:
                 print("Локация не найдена.")
+        elif command == "introscene":
+            if "intro" not in novel.player.location:
+                print("Не в интро комнате!")
+                continue
+            loc_id = novel.player.location[:5] + str(int(novel.player.location[5:]) + 1)
+            loc_name = "???"
+            loc_desc = input("Описание новой локации: ")
+            loc_dir = "spec"
+            new_location = Location(loc_id, loc_name, loc_desc, {})
+            novel.player.current_world.locations.append(new_location)
+            cur_loc = novel.get_player_location()
+            cur_loc.exits[loc_dir] = loc_id
+            novel.player.location = loc_id
+            print(f"Интро Локация '{loc_name}' добавлена в мир.")
         elif command == "tp":
             if payload:
                 loc_id = payload
