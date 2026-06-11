@@ -379,9 +379,9 @@ class VisualMap:
 
 novel = RPGNovel("Mallex") 
 
-current_room_desc, player_hp, player_inv, loc = novel.get_player_location()
+
 display_text = PygameTextPrinter(speed_ms=25)
-display_text.set_text(current_room_desc)
+display_text.set_text("missingno")
 
 # Цвета
 black = (0, 0, 0) 
@@ -426,10 +426,19 @@ malex_img = Image(0, 0, malex_anim[0], animation_frames=malex_anim, animation_sp
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
 
-btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : display_text.set_text(novel.handle("move","север")["text"]), img="no" )
-btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : display_text.set_text(novel.handle("move","юг")["text"]), img="no" )
-btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : display_text.set_text(novel.handle("move","восток")["text"]), img="no" )
-btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : display_text.set_text(novel.handle("move","запад")["text"]), img="no" )
+def action_move(direction):
+    res = novel.handle("move", direction)
+    spec = novel.get_player_location().special_flags
+    if spec:
+        malex_img.translate(spec["MX"], spec["MY"], time=300) # Плавный переход на новую позицию
+    else:
+        malex_img.translate(0, 0, time=300)
+    display_text.set_text(res["text"])
+
+btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
+btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : action_move("юг"), img="no" )
+btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : action_move("восток"), img="no" )
+btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : action_move("запад"), img="no" )
 
 btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )

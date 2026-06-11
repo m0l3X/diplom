@@ -102,7 +102,7 @@ class RPGNovel():
         print("Saved!")
     def get_player_location(self):
         current_room = self.player.current_world.get_location(self.player.location)
-        return current_room.description, self.player.gethp(), self.player.showinventory(), current_room
+        return current_room
     def handle(self,action,payload=None):
         player=self.player
         current_room = player.current_world.get_location(player.location)
@@ -474,7 +474,7 @@ class Weapon(Item):
         target.take_damage(self.damage)
         
 class Enemy:
-    def __init__(self, name, hp, dmg, backstory, inv=[]):
+    def __init__(self, name, hp, dmg, backstory, inv=None):
         self.name = name
         self.__hp = hp
         self.dmg = dmg
@@ -510,7 +510,7 @@ Always reply in Russian.
 SPECIAL:
 If user says 'rizz' → become weak, submissive, shy.
 """
-        self.inventory = inv
+        self.inventory = inv if inv is not None else []
 
     def give(self, player, item=0):
         if(len(self.inventory) > 0):
@@ -671,14 +671,14 @@ class World():
         locations = [Location.from_dict(loc) for loc in decoded_data["locations"]]
         return cls(locations)
 class Location():
-    def __init__(self, id, name, description, exits, items=[], enemies=[], spec={}):
+    def __init__(self, id, name, description, exits, items=None, enemies=None, spec=None):
         self.id = id
         self.name = name
         self.description = description
         self.exits = exits
-        self.items = items
-        self.enemies = enemies
-        self.special_flags = spec
+        self.items = items if items is not None else []
+        self.enemies = enemies if enemies is not None else []
+        self.special_flags = spec if spec is not None else {}
     def get_enemy(self, id):
         for enemy in self.enemies:
             if enemy.name == id:
@@ -817,7 +817,7 @@ if __name__ == "__main__":
     if name != "Fuck you":
         print("ОБНАРУЖЕН СУЩЕСТВУЮЩИЙ СЕЙВ!!!!!!!!! ЗАГРУЗИСЬ ПОКА НЕ ПОЗДНО")
     while True:
-        print(f"\n--- Локация: {novel.player.location} --- \n {novel.get_player_location()[0]} \n HP: {novel.get_player_location()[1]} \n Инвентарь: {novel.get_player_location()[2]}")
+        print(f"\n--- Локация: {novel.player.location} --- \n {novel.get_player_location().description} \n HP: {novel.player.gethp()} \n Инвентарь: {novel.player.inventory}")
         print("Доступные команды: (стороны света), inv, exit, save, addloc, modifyloc, additem, addenemy additemtoenemy, getroomdata, removeenemy, removeitem, removeloc")
         
         user_input = input("Ввод > ").strip().split()
@@ -851,13 +851,13 @@ if __name__ == "__main__":
             }
             new_location = Location(loc_id, loc_name, loc_desc, {counterpart_dirs[loc_dir]: novel.player.location})
             novel.player.current_world.locations.append(new_location)
-            lena, max, canon, cur_loc = novel.get_player_location()
+            cur_loc = novel.get_player_location()
             cur_loc.exits[loc_dir] = loc_id
             print(f"Локация '{loc_name}' добавлена в мир.")
         elif command == "modifyloc":
             loc_id = input("ID локации для изменения (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -890,7 +890,7 @@ if __name__ == "__main__":
         elif command == "additem":
             loc_id = input("ID локации для добавления предмета (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -913,7 +913,7 @@ if __name__ == "__main__":
         elif command == "addenemy":
             loc_id = input("ID локации для добавления врага (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -929,7 +929,7 @@ if __name__ == "__main__":
         elif command == "additemtoenemy":
             loc_id = input("ID локации, где находится враг (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -960,7 +960,7 @@ if __name__ == "__main__":
         elif command == "getroomdata":
             loc_id = input("ID локации для получения данных (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -970,7 +970,7 @@ if __name__ == "__main__":
         elif command == "removeenemy":
             loc_id = input("ID локации для удаления врага (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -986,7 +986,7 @@ if __name__ == "__main__":
         elif command == "removeitem":
             loc_id = input("ID локации для удаления предмета (пусто если текущую): ")
             if loc_id.strip() == "":
-                a,b,c,location = novel.get_player_location()
+                location = novel.get_player_location()
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
@@ -1014,6 +1014,18 @@ if __name__ == "__main__":
                     for dir in exits_to_remove:
                         del loc.exits[dir]
                 print(f"Локация с ID '{loc_id}' удалена.")
+            else:
+                print("Локация не найдена.")
+        elif command == "write_special_flags":
+            loc_id = input("ID локации для добавления предмета (пусто если текущую): ")
+            if loc_id.strip() == "":
+                location = novel.get_player_location()
+            else:
+                location = novel.player.current_world.get_location(loc_id)
+            if location:
+                inp = input("Спец. флаги для комнаты (в json формате): ")
+                location.special_flags = json.loads(inp)
+                print(f"Флаги '{inp}' добавлены в локацию '{location.name}'.")
             else:
                 print("Локация не найдена.")
         elif command == "save":
