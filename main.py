@@ -479,7 +479,9 @@ def action_special():
     display_text.set_text(res["text"])
     special_flags = novel.get_player_location().special_flags
     bg_img.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image
-    malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000) if "MX" in special_flags.keys()  else ""
+    if "MX" in special_flags.keys():
+        malex_img.translate(special_flags["MX"], special_flags["MY"], time=special_flags["MT"]) if "MT" in special_flags.keys()  else malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000)
+        
     malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
     bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000) if "BGX" in special_flags.keys() else ""
 
