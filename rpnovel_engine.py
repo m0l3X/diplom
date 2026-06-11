@@ -115,6 +115,13 @@ class RPGNovel():
                 case "move":
                     if payload in current_room.exits:
                         #try:
+                        wishroom_id = current_room.exits[payload]
+                        wishroom = player.current_world.get_location(wishroom_id)
+                        if "locked" in wishroom.special_flags.keys():
+                            if wishroom.special_flags["locked"] not in [i.id for i in player.inventory]:
+                                response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
+                                return response
+                            
                         player.location = current_room.exits[payload]
                         response["text"] = player.current_world.get_location(player.location).description #f"Ты перешел в {player.location}"
                         player.visited_locations.add(player.location)
@@ -270,8 +277,9 @@ class RPGNovel():
                     response["text"] = f"Ты ударил {enemy.name} оружием {weapon.name} на {damage} урона.\n"
                     
                     if enemy.gethp() <= 0:
-                        response["text"] += f"{enemy.name} побежден!"
                         current_room.enemies.remove(enemy) # Убираем труп из комнаты
+                        player.inventory.extend(enemy.inventory) # Забираем вещи врага
+                        response["text"] += f"{enemy.name} побежден! ты получил такие крутые предметы, как: {', '.join([item.name for item in enemy.inventory])}"
                         self.state = "EXPLORING" # Возвращаемся в мир
                         self.current_enemy = None
                     else:

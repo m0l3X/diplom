@@ -434,11 +434,8 @@ ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
 
 def action_move(direction):
     res = novel.handle("move", direction)
-    spec = novel.get_player_location().special_flags
-    if spec:
-        malex_img.translate(spec["MX"], spec["MY"], time=300) # Плавный переход на новую позицию
-    else:
-        malex_img.translate(0, 0, time=300)
+    special_flags = novel.get_player_location().special_flags
+    malex_img.translate(special_flags["MX"], special_flags["MY"], time=300) if "MX" in special_flags.keys()  else malex_img.translate(0, 0, time=300)
     display_text.set_text(res["text"])
 
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
@@ -670,6 +667,8 @@ while True:
                     # Если мы в обычном режиме исследования
                     if novel.state == "EXPLORING":
                         freeroam.click(mouse_pos)
+                        if btn_spec.enabled and btn_spec.rect.collidepoint(mouse_pos):
+                            btn_spec.func()
                         
 
                     # Если движок переключился в режим боя
@@ -728,8 +727,11 @@ while True:
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
             freeroam.draw(screen)
-            if "pyat" in novel.player.location:
+            if "special" in novel.get_player_location().special_flags.keys():
                 btn_spec.draw(screen)
+                btn_spec.enabled = True
+            else: 
+                btn_spec.enabled = False
             
         elif novel.state == "COMBAT":
             battle.draw(screen)
