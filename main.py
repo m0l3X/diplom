@@ -70,18 +70,21 @@ class Button:
         surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
 
 class Image:
-    def __init__(self, x, y, img, animation_frames=None, animation_speed=500,anim=False):
+    def __init__(self, x, y, img, animations=None, animation_speed=500,anim=False):
         self.img = img
         self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
-        self.animation_frames = animation_frames
+        self.animations = animations
+        self.animation = 0
         self.animation_speed = animation_speed
         self.anim = anim
         self.current_frame = 0
         self.last_update = 0
+
     def draw(self, surf):
         if not self.anim:
             surf.blit(self.img, (self.rect.x, self.rect.y))
         else:
+            self.animation_frames = self.animations[self.animation]
             now = pygame.time.get_ticks()
             if now - self.last_update > self.animation_speed:
                 self.current_frame = (self.current_frame + 1) % len(self.animation_frames) # Переходим к следующему кадру
@@ -416,13 +419,14 @@ click_zone = pygame.Rect(350, 340, 300, 100)
 
 #херня с анимацией ..dunno если честно куда ее вставить. так что пусть сюда.. ):
 #тут загружаются кадрі анимации
-malex_anim = [
+malex_anim_static = [
     pygame.image.load('assets/images/sprites/Pmalex.png'),
     pygame.image.load('assets/images/sprites/Pmalex01.png'),
 ]
+malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png')
 # переменніе для управления таймингом анимации
 
-malex_img = Image(0, 0, malex_anim[0], animation_frames=malex_anim, animation_speed=600, anim=True)
+malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall,malex_fall]], animation_speed=600, anim=True)
 bg_img = Image(0, 0, background_image)
 
 
@@ -477,6 +481,7 @@ def action_special():
     display_text.set_text(res["text"])
     special_flags = novel.get_player_location().special_flags
     malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000) if "MX" in special_flags.keys()  else ""
+    malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
     bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000) if "BGX" in special_flags.keys() else ""
 
 # Действие 1: Подобрать предмет из комнаты
@@ -723,6 +728,8 @@ while True:
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
             freeroam.draw(screen)
+            if "pyat" in novel.player.location:
+                btn_spec.draw(screen)
             
         elif novel.state == "COMBAT":
             battle.draw(screen)
@@ -732,8 +739,6 @@ while True:
                 screen.blit(enemy_hp_text, (780, 160))
         items_menu.draw(screen)
         map_menu.draw(screen)
-        if "pyat" in novel.player.location:
-            btn_spec.draw(screen)
         if "intro" in novel.player.location:
             current_scene = "intro"
 

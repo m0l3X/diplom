@@ -372,7 +372,7 @@ class Player():
         self.lvl = 1
         self.current_world = world_zero
         self.location = "start"
-        self.inventory = [palka,galo]
+        self.inventory = []
         self.visited_locations = set()
         
     def gethp(self):
@@ -808,7 +808,7 @@ if __name__ == "__main__":
     # Предположим, у игрока уже есть нож в инвентаре для теста
     name = input("Кто ты? \n > ")
     novel = RPGNovel(name)
-    novel.player.inventory.append(nozh)
+    #novel.player.inventory.append(nozh)
     novel.player.location = "start" # стартовая комната
     world = World([Location("start", "Старт", "Пустая комната", {}, [])])
     novel.player.current_world = world
@@ -916,6 +916,36 @@ if __name__ == "__main__":
                 print(f"Предмет '{item_name}' добавлен в локацию '{location.name}'.")
             else:
                 print("Локация не найдена.")
+        elif command == "drop":
+            item_name = input("ID предмета для выбрасывания: ")
+            item_to_remove = None
+            for item in novel.player.inventory:
+                if item.id == item_name:
+                    item_to_remove = item
+                    break
+            if item_to_remove:
+                novel.player.inventory.remove(item_to_remove)
+                #current_location = novel.get_player_location()
+                #current_location.items.append(item_to_remove)
+                print(f"Вы выбросили {item_name}. в бездну.'.")
+            else:
+                print("Предмет не найден в инвентаре.")
+        elif command == "give":
+            item_id = input("ID предмета: ")
+            item_name = input("Название предмета: ")
+            item_desc = input("Описание предмета: ")
+            item_type = input("Тип предмета (обычный, оружие, зелье): ").lower()
+            if item_type == "оружие":
+                damage = int(input("Урон оружия: "))
+                new_item = Weapon(item_id, item_name, item_desc, damage)
+            elif item_type == "зелье":
+                heal_power = int(input("Сила лечения зелья: "))
+                new_item = Potion(item_id, item_name, item_desc, heal_power)
+            else:
+                new_item = Item(item_id, item_name, item_desc)
+            novel.player.inventory.append(new_item)
+            print(f"Предмет '{item_name}' добавлен в твой инвентарь.")
+
         elif command == "addenemy":
             loc_id = input("ID локации для добавления врага (пусто если текущую): ")
             if loc_id.strip() == "":
@@ -970,7 +1000,7 @@ if __name__ == "__main__":
             else:
                 location = novel.player.current_world.get_location(loc_id)
             if location:
-                print(f"Локация: {location.name}\nОписание: {location.description}\nВыходы: {location.exits}\nПредметы: {[item.name for item in location.items]}\nВраги: {[enemy.name for enemy in location.enemies]}")
+                print(f"Локация: {location.name}\nОписание: {location.description}\nВыходы: {location.exits}\nПредметы: {[item.name for item in location.items]}\nВраги: {[enemy.name for enemy in location.enemies]} \n Спец. флаги: {location.special_flags}")
             else:
                 print("Локация не найдена.")
         elif command == "removeenemy":
@@ -1065,6 +1095,27 @@ if __name__ == "__main__":
         elif command == "load":
             novel.handle("load")
             print("Игра загружена.")
+        elif command == "loadfromb64":
+            b64_data = input("Введите строку в формате base64 для загрузки мира: ")
+            try:
+                novel.player.current_world = World.from_dict(b64_data)
+                print("Мир загружен из base64 строки.")
+            except Exception as e:
+                print(f"Ошибка при загрузке мира: {str(e)}")
+        elif command == "getworldb64":
+            world_b64 = novel.player.current_world.to_dict()
+            print("Мир в формате base64:")
+            print(world_b64)
+        elif command == "getnodemap":
+            out = ""
+            world_data = novel.player.current_world.generate_map_positions(set([l.id for l in novel.player.current_world.locations]))
+            world = novel.player.current_world
+            for loc_id, coords in world_data.items():
+                out += f'{coords} - {world.get_location(loc_id).name if hasattr(world.get_location(loc_id),"name") else "uuhhh"} - {world.get_location(loc_id).description if hasattr(world.get_location(loc_id),"description") else "uuuug!!!!"}\n'
+
+                
+            print("Карта локаций (ID локации: (x, y)):")
+            print(out)
         elif command == "dumpworld":
             print(novel.player.current_world.to_dict())
     
