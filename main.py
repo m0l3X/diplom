@@ -432,11 +432,13 @@ bg_img = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.
 
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
-
+start_time = 0
 def action_move(direction):
     res = novel.handle("move", direction)
     special_flags = novel.get_player_location().special_flags
     malex_img.translate(special_flags["MX"], special_flags["MY"], time=300) if "MX" in special_flags.keys()  else malex_img.translate(0, 0, time=300)
+    global start_time
+    start_time = pygame.time.get_ticks()
     display_text.set_text(res["text"])
 
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
@@ -632,12 +634,17 @@ def fight(item_idx=None, name=None, text=""):
     display_text.set_text(f"{novel.current_enemy.name} думает...")
     threading.Thread(target=fetch_ai_response, daemon=True).start() 
 
+yo = True
 while True:
     mouse_pos = pygame.mouse.get_pos()
     clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
-    
     #тут херня с обновлением кадров анимации
-    
+    if yo == False:
+        elapsed_time = pygame.time.get_ticks() - start_time
+        #print(elapsed_time)
+        if elapsed_time >= 60000: 
+            display_text.set_text("Йоу?")
+            yo = True
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -695,13 +702,15 @@ while True:
         display_text.update()
         bg_img.draw(screen)
         malex_img.draw(screen)
-        
+        btn_spec.enabled = True
         screen.blit(text_box_image, (0.5 * weight - text_box_image.get_width() // 2 - 10, 0.5 * height - text_box_image.get_height() // 2 + 30)) # Рисуем текстуру плашки поверх
         intro_menu.draw(screen)
         text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
         screen.blit(text_surface, (120, 560))  
-        if novel.player.location == "start":
+        if "intro" not in novel.player.location:
             current_scene = "game"
+            yo = False
+            start_time = pygame.time.get_ticks()
     elif current_scene == "game":
         screen.fill((0, 0, 0))
         display_text.update()
