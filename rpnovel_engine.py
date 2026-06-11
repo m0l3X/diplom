@@ -817,6 +817,9 @@ if __name__ == "__main__":
     if name != "Fuck you":
         print("ОБНАРУЖЕН СУЩЕСТВУЮЩИЙ СЕЙВ!!!!!!!!! ЗАГРУЗИСЬ ПОКА НЕ ПОЗДНО")
     while True:
+        if novel.get_player_location() == None:
+            print("эээ... каким то хером мы не можем найти локацию с таким же ID в которой ты щас находишься, тепаем тебя в старт")
+            novel.player.location = "start"
         print(f"\n--- Локация: {novel.player.location} --- \n {novel.get_player_location().description} \n HP: {novel.player.gethp()} \n Инвентарь: {novel.player.inventory}")
         print("Доступные команды: (стороны света), inv, exit, save, addloc, modifyloc, additem, addenemy additemtoenemy, getroomdata, removeenemy, removeitem, removeloc")
         
@@ -825,7 +828,7 @@ if __name__ == "__main__":
             continue
             
         command = user_input[0].lower()
-        payload = user_input[1] if len(user_input) > 1 else user_input[1:]
+        payload = user_input[1] if len(user_input) == 2 else user_input[1:]
         if command == "exit":
             print("Выход из тестового режима.")
             break
@@ -1024,10 +1027,21 @@ if __name__ == "__main__":
                 location = novel.player.current_world.get_location(loc_id)
             if location:
                 inp = input("Спец. флаги для комнаты (в json формате): ")
-                location.special_flags = json.loads(inp)
+                try:
+                    location.special_flags = json.loads(inp)
+                except :
+                    print("Неверный формат JSON. Флаги не добавлены.")
+                    continue
                 print(f"Флаги '{inp}' добавлены в локацию '{location.name}'.")
             else:
                 print("Локация не найдена.")
+        elif command == "tp":
+            if payload:
+                loc_id = payload
+            else:
+                loc_id = input("ID локации для телепортации: ")
+            novel.player.location = loc_id
+            print(f"Телепортировано в локацию '{loc_id}'.")
         elif command == "save":
             novel.handle("save")
             print("Игра сохранена.")
