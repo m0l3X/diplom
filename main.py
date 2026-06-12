@@ -155,6 +155,7 @@ class Menu:
         for btn in self.panels:
             if isinstance(btn, TextInputField):
                 btn.handle_event(event)
+                
 
 class TextInputField:
     def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, max_chars=500, on_submit=None):
@@ -190,14 +191,17 @@ class TextInputField:
             if self.rect.collidepoint(event.pos):
                 self.active = True
                 self.text = "" if self.text == "Сказать..." else self.text
+                malex_img.animation = 2
             else:
                 self.active = False
+                malex_img.animation = 0
 
         # Если поле «в фокусе», перехватываем клавиатуру
         if self.active and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
                 # Если нажали Enter и текст не пустой — отправляем данные в callback
                 if self.text.strip() and self.on_submit:
+                    malex_img.animation = 0
                     self.on_submit(self.text)
                     self.text = ""  # Очищаем поле после отправки
             elif event.key == pygame.K_BACKSPACE:
@@ -400,13 +404,14 @@ ui_font = pygame.font.SysFont('Freeride', 20)
 names_font = pygame.font.SysFont('Freeride', 35)
 
 # Загрузка ассетов (код напарника)
-nemo_image = pygame.image.load('assets/images/sprites/nemo.png')
+#nemo_image = pygame.image.load('assets/images/sprites/enemy/nemo.png')
 background_image = pygame.image.load('assets/images/fon.png')
 bgs = {}
 novel.handle("load")
 for location in novel.player.current_world.locations:
     if os.path.exists(f'assets/images/locations/{location.id}.png'):
         bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png')
+
 background_menu = pygame.image.load('assets/images/UI/menu_fon.png')
 text_box_image = pygame.image.load('assets/images/UI/button.png')
 
@@ -425,10 +430,14 @@ malex_anim_static = [
     pygame.image.load('assets/images/sprites/Pmalex.png'),
     pygame.image.load('assets/images/sprites/Pmalex01.png'),
 ]
+malex_anim_thinks = [
+    pygame.image.load('assets/images/sprites/Pmalexthinks.png'),
+    pygame.image.load('assets/images/sprites/Pmalexthinks1.png'),
+]
 malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png')
 # переменніе для управления таймингом анимации
 
-malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall,malex_fall]], animation_speed=600, anim=True)
+malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall, malex_fall], malex_anim_thinks], animation_speed=600, anim=True)
 bg_img = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image)
 
 
@@ -442,13 +451,23 @@ def action_move(direction):
     start_time = pygame.time.get_ticks()
     display_text.set_text(res["text"])
 
+def action_start_combat(enemy_idx=1):
+    res = novel.handle("start_combat", enemy_idx)
+    display_text.set_text(res["text"])
+    global cur_enemy_img
+    enemy_id = res["extra_data"]["enemy"].id if "extra_data" in res.keys() and "enemy" in res["extra_data"].keys() else "missingno"
+    try:
+        cur_enemy_img = pygame.image.load(f'assets/images/sprites/enemies/{enemy_id}.png')
+    except:
+        cur_enemy_img = pygame.image.load(f'assets/images/sprites/enemies/missingno.png')
+
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
 btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : action_move("юг"), img="no" )
 btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : action_move("восток"), img="no" )
 btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : action_move("запад"), img="no" )
 
 btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
-btn_attack = Button(500, 700, text="Атаковать", func=lambda : display_text.set_text(novel.handle("start_combat", "1")["text"]) )
+btn_attack = Button(500, 700, text="Атаковать", func=lambda : action_start_combat() )
 
 btn_save = Button(900, 20, text="Сохранить", func=lambda : display_text.set_text(novel.handle("save")["text"]) )
 
@@ -459,14 +478,18 @@ btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'en
 freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
-btn_hit = Button(220, 240, text="Ударить", func=lambda: open_player_weapons())
-btn_run = Button(220, 320, text="Сбежать", func=lambda: display_text.set_text(novel.handle("fight_run")["text"]))
-input_field = TextInputField(220, 400, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
+point=200
+offset = 80
+btn_hit = Button(220, point, text="Ударить", func=lambda: open_player_weapons())
+input_field = TextInputField(220, point + offset, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
+btn_item = Button(220, point + offset*2, text="Предмет", func=lambda: battle_player_inventory())
+btn_mercy = Button(220, point + offset*3, text="ПОЩАДА", func=lambda: open_mercy_buttons())
 
-battle = Menu([btn_run, btn_hit, input_field])
+battle = Menu([btn_hit, input_field, btn_item, btn_mercy])
 
 btn_close_items = Button(700, 20, text="X", func=lambda: close_items_menu())
-items_menu = Menu([text_box_image,btn_close_items]) 
+inv_img = pygame.image.load('assets/images/UI/inventory.png')
+items_menu = Menu([inv_img,btn_close_items]) 
 items_menu.enabled = False
 
 ingame_map = VisualMap(x=200, y=150, w=600, h=400)
@@ -486,11 +509,12 @@ def action_special():
         malex_img.translate(special_flags["MX"], special_flags["MY"], time=special_flags["MT"]) if "MT" in special_flags.keys()  else malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000)
         
     malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
-    bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000) if "BGX" in special_flags.keys() else ""
+    if "BGX" in special_flags.keys():
+        bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else malex_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
-    res = novel.handle("take", str(item_index))
+    res = novel.handle("take", item_index)
     display_text.set_text(res["text"])
     
     close_items_menu()
@@ -499,14 +523,14 @@ def action_pick_up(item_index, item_name):
     #rebuild_items_menu(room_data, action_pick_up)
 
 def action_inspect(item_index, item_name):
-    res = novel.handle("inspect", str(item_index)) 
+    res = novel.handle("inspect", item_index) 
     display_text.set_text(res["text"])
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
     close_items_menu()
 
 def action_drop_item(item_index, item_name):
     # Предположим, у тебя на бэкенде есть команда "use" или "inspect"
-    res = novel.handle("drop", str(item_index )) 
+    res = novel.handle("drop", item_index) 
     display_text.set_text(res["text"])
     
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
@@ -515,7 +539,7 @@ def action_drop_item(item_index, item_name):
 # Действие 2: Использовать/осмотреть предмет из личного инвентаря
 def action_use_item(item_index, item_name):
     # Предположим, у тебя на бэкенде есть команда "use" или "inspect"
-    res = novel.handle("usepotion", str(item_index)) 
+    res = novel.handle("usepotion", item_index) 
     display_text.set_text(res["text"])
     
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
@@ -526,21 +550,22 @@ def rebuild_items_menu(raw_data, on_click_callback):
     Принимает строку с предметами через ';' и функцию, 
     которая должна выполниться при клике на элемент.
     """
+    malex_img.animation = 2
     if not raw_data: 
         items_menu.panels = [
-            Image(0, 0, text_box_image), 
-            Button(20, 20, text="Пусто", func=lambda: close_items_menu()),
+            Image(0, 0, inv_img), 
+            Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
             btn_close_items
         ]
         return
 
     items_list = raw_data.split(";")
-    new_panels = [Image(0, 0, text_box_image),btn_close_items]
+    new_panels = [Image(0, 0, inv_img),btn_close_items]
     
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
         btn = Button(
-            20, 20 + i * 50, 
+            60, 40 + i * 50, 
             text=item_name, 
             func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name)
         )
@@ -553,13 +578,21 @@ def rebuild_items_menu(raw_data, on_click_callback):
 def close_items_menu(dummy=None):
     malex_img.translate(0, 0, time=500)
     items_menu.enabled = False
+    malex_img.animation = 0
 
 def drop_buttons(item_idx, name):
     open_player_inventory()
-    items_menu.panels.append(Button(220, 20 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name)))
-    items_menu.panels.append(Button(420, 20 + item_idx*50, text=f"Использовать", func=lambda: action_use_item(item_idx, name)))
-    items_menu.panels.append(Button(620, 20 + item_idx*50, text=f"Выбросить", func=lambda: action_drop_item(item_idx, name)))
+    drop_btns = [Button(220, 40 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name)),
+                 Button(420, 40 + item_idx*50, text=f"Использовать", func=lambda: action_use_item(item_idx, name)),
+                 Button(620, 40 + item_idx*50, text=f"Выбросить", func=lambda: action_drop_item(item_idx, name))]
+    items_menu.panels.extend(drop_btns)
 
+def battle_drop_buttons(item_idx, name):
+    battle_player_inventory()
+    btn = Button(280, 40 + item_idx*50, text=f"Использовать", func=lambda: battle_use_item(item_idx, name))
+    btn2 = Button(480, 40 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name))
+    items_menu.panels.append(btn)
+    items_menu.panels.append(btn2)
 
     
 
@@ -568,27 +601,49 @@ def open_room_items():
     room_data = novel.handle("checkroom_internal")["text"]
     # Строим меню предметов комнаты, при клике сработает подбор
     malex_img.translate(100, 0, time=200)
-
+    
     rebuild_items_menu(room_data, action_pick_up)
 
 ###################### МОЛЕКС ТУТ БЛЯТЬ ФУНКЦИЯ АТАКИ
 
 def open_player_weapons():
-    battle.panels = [btn_run, btn_hit, input_field]
+    reset_battle_panels()
     #items_menu.enabled = True
     raw_data = novel.handle("get_weapons")["text"]
     items_list = raw_data.split(";")
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
         btn = Button(
-            220, 190 + i * -50, 
+            220, point-offset + i * -50, 
             text=item_name, 
             func=lambda item_idx=i, name=item_name: fight(item_idx, name)
         )
         battle.panels.append(btn)
     
     print("Оружия???? Зачем тебе оружия, бака!! Ты кого убить там собрался???????? Н-но, держи, будь аккуратнее, с-семпай...") # why are you so tsundere
-    
+
+def open_mercy_buttons():
+    reset_battle_panels()
+    btn_spare = Button(
+            420, point+offset*3, 
+            text="Пощадить", 
+            func=lambda : spare()
+        )
+    btn_run = Button(
+            620, point+offset*3, 
+            text="Сбежать", 
+            func=lambda : run()
+        )
+    battle.panels.append(btn_spare)
+    battle.panels.append(btn_run)
+
+def battle_player_inventory():
+    reset_battle_panels()
+    items_menu.enabled = True
+    inv_data = novel.handle("inv_internal")["text"]
+    print("ЧТО?? Уже и зелья собрался пить?? Ты настолько глупый что уже потерял столько ХП???? ХАХА, н-но вот смотри твой инвентарь, используй что хочешь..") # why are you so tsundere
+    # Строим меню инвентаря, при клике сработает использование/осмотр
+    rebuild_items_menu(inv_data, battle_drop_buttons)
 
 def open_player_inventory():
     items_menu.enabled = True
@@ -616,8 +671,76 @@ def reset_afk():
     global start_time
     start_time = pygame.time.get_ticks()
 
+def reset_battle_panels():
+    battle.panels = [btn_hit, input_field, btn_item, btn_mercy]
+    input_field.text = "Сказать..."
+
+def run(item_idx=None, name=None):
+    reset_battle_panels()
+    def fetch_ai_response():
+        global is_loading
+        
+        try:
+            is_loading = True
+            battle.enabled = False
+            res = novel.handle("fight_run")
+            # Передаем текст в принтер (это безопасно делать из потока)
+            display_text.set_text(res["text"])
+        except Exception as e:
+            display_text.set_text(f"Ошибка связи с ИИ: {e}")
+        finally:
+            # Выключаем режим загрузки, когда поток завершил работу
+            is_loading = False
+            battle.enabled = True
+    is_loading = True
+    display_text.set_text(f"Ты попытался сбежать, но это безуспешно... \n Ждём ответа...")
+    threading.Thread(target=fetch_ai_response, daemon=True).start() 
+
+def spare(item_idx=None, name=None):
+    reset_battle_panels()
+    def fetch_ai_response():
+        global is_loading
+        
+        try:
+            is_loading = True
+            battle.enabled = False
+            res = novel.handle("fight_spare")
+            # Передаем текст в принтер (это безопасно делать из потока)
+            display_text.set_text(res["text"])
+        except Exception as e:
+            display_text.set_text(f"Ошибка связи с ИИ: {e}")
+        finally:
+            # Выключаем режим загрузки, когда поток завершил работу
+            is_loading = False
+            battle.enabled = True
+    is_loading = True
+    display_text.set_text(f"Ты попытался пощадить врага... \n Ждём ответа...")
+    threading.Thread(target=fetch_ai_response, daemon=True).start()
+
+def battle_use_item(item_idx=None, name=None):
+    reset_battle_panels()
+    close_items_menu()
+    def fetch_ai_response():
+        global is_loading
+        
+        try:
+            is_loading = True
+            battle.enabled = False
+            res = novel.handle("fight_usepotion", payload=item_idx)
+            # Передаем текст в принтер (это безопасно делать из потока)
+            display_text.set_text(res["text"])
+        except Exception as e:
+            display_text.set_text(f"Ошибка связи с ИИ: {e}")
+        finally:
+            # Выключаем режим загрузки, когда поток завершил работу
+            is_loading = False
+            battle.enabled = True
+    is_loading = True
+    display_text.set_text(f"Ты попытался использовать предмет... \n Ждём ответа...")
+    threading.Thread(target=fetch_ai_response, daemon=True).start()
+
 def fight(item_idx=None, name=None, text=""):
-    battle.panels = [btn_run, btn_hit, input_field]
+    reset_battle_panels()
     def fetch_ai_response():
         global is_loading
         
@@ -638,7 +761,7 @@ def fight(item_idx=None, name=None, text=""):
             is_loading = False
             battle.enabled = True
     is_loading = True
-    display_text.set_text(f"{novel.current_enemy.name} думает...")
+    display_text.set_text(f"Ты атаковал {novel.current_enemy.name} оружием {name}! \n Ждём ответа...") if item_idx != None else display_text.set_text(f"Ты сказал {novel.current_enemy.name}: '{text}' \n Ждём ответа...")
     threading.Thread(target=fetch_ai_response, daemon=True).start() 
 
 yo = True
@@ -730,7 +853,7 @@ while True:
         malex_img.draw(screen)
 
         if novel.state == "COMBAT":
-            screen.blit(nemo_image, (0.5 * weight - nemo_image.get_width() // 2 + 20, 0.5 * height - nemo_image.get_height() // 2 + 30))
+            screen.blit(cur_enemy_img, (0.5 * weight - cur_enemy_img.get_width() // 2 + 20, 0.5 * height - cur_enemy_img.get_height() // 2 + 30)) if cur_enemy_img else ""
         # --- ДИНАМИЧЕСКИЙ ТЕКСТ ИЗ ДВИЖКА ---
 
         screen.blit(text_box_image, (0.5 * weight - text_box_image.get_width() // 2 - 10, 0.5 * height - text_box_image.get_height() // 2 + 30)) # Рисуем текстуру плашки поверх
@@ -746,7 +869,7 @@ while True:
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
             freeroam.draw(screen)
-            if "special" in novel.get_player_location().special_flags.keys():
+            if "spec" in novel.get_player_location().special_flags.keys():
                 btn_spec.draw(screen)
                 btn_spec.enabled = True
             else: 
