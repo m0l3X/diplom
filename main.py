@@ -117,6 +117,29 @@ class Image:
                     self.rect.x = int(smoothstep(start_x, (newx), t))
                     self.rect.y = int(smoothstep(start_y , (newy), t))
         threading.Thread(target=animate, daemon=True).start()
+    def short_animation(self, anim_idx, duration=500):
+        def animate():
+            original_animation = self.animation
+            self.animation = anim_idx
+            pygame.time.wait(duration)
+            self.animation = original_animation
+        threading.Thread(target=animate, daemon=True).start()
+    def shake(self, intensity=5, duration=500):
+        def animate():
+            original_pos = (self.rect.x, self.rect.y)
+            start_time = pygame.time.get_ticks()
+            while True:
+                now = pygame.time.get_ticks()
+                elapsed = now - start_time
+                if elapsed >= duration:
+                    self.rect.x, self.rect.y = original_pos
+                    break
+                else:
+                    offset_x = random.randint(-intensity, intensity)
+                    offset_y = random.randint(-intensity, intensity)
+                    self.rect.x = original_pos[0] + offset_x
+                    self.rect.y = original_pos[1] + offset_y
+        threading.Thread(target=animate, daemon=True).start()
 
         
 
@@ -157,6 +180,8 @@ class Menu:
 
         for btn in self.panels:
             if isinstance(btn, TextInputField):
+                btn.handle_event(event)
+            if isinstance(btn, ScrollList):
                 btn.handle_event(event)
                 
 
@@ -387,7 +412,75 @@ class VisualMap:
             # Рендер текста названия (используй свой шрифт, например ui_font)
             text_surf = ui_font.render(loc_name, True, (0, 0, 0))
             surf.blit(text_surf, (coords[0] - text_surf.get_width() // 2, coords[1] - self.node_radius - 20))
+class ScrollList:
+    def __init__(self, x, y, width, height, item_height=50):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height          # Высота видимого окошка инвентаря
+        self.item_height = item_height  # Высота одной строчки/кнопки (у тебя это 50)
+        
+        self.items = []               # Сюда складываем созданные объекты Button
+        self.scroll_y = 0             # Текущий сдвиг прокрутки (в пикселях)
+        self.max_scroll = 0           # Максимальный предел прокрутки вверх
 
+    def set_items(self, items_list):
+        """Заполняет список элементами и пересчитывает максимальный скролл"""
+        self.items = items_list
+        # Считаем полную высоту всего списка
+        total_height = len(self.items) * self.item_height
+        # Максимально скроллить можно только если контент длиннее, чем экран
+        self.max_scroll = max(0, total_height - self.height)
+        # Принудительно сбрасываем скролл, чтобы не сломать отображение при пересборке
+        self.scroll_y = 0 
+        self.update_positions()
+
+    def update_positions(self):
+        """Динамически пересчитывает Y-координату для каждой кнопки с учетом скролла"""
+        for i, item in enumerate(self.items):
+            # Базовая позиция (внутри списка) минус сдвиг скролла
+            item.rect.y = self.y + (i * self.item_height) - self.scroll_y
+            item.rect.x = self.x
+
+    def handle_event(self, event):
+        """Вставь вызов этого метода в свой главный цикл обработки событий Pygame"""
+        if not self.items:
+            return
+
+        # 1. Прокрутка колесиком мыши (работает, если курсор над областью списка)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos = pygame.mouse.get_pos()
+            # Проверяем, что мышка находится внутри границ скролл-листа
+            if (self.x <= mouse_pos[0] <= self.x + self.width and 
+                self.y <= mouse_pos[1] <= self.y + self.height):
+                
+                if event.button == 4: # Колесико ВВЕРХ
+                    self.scroll_y = max(0, self.scroll_y - self.item_height)
+                    self.update_positions()
+                elif event.button == 5: # Колесико ВНИЗ
+                    self.scroll_y = min(self.max_scroll, self.scroll_y + self.item_height)
+                    self.update_positions()
+
+        # 2. Прокрутка стрелочками клавиатуры
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_UP:
+                self.scroll_y = max(0, self.scroll_y - self.item_height)
+                self.update_positions()
+            elif event.key == pygame.K_DOWN:
+                self.scroll_y = min(self.max_scroll, self.scroll_y + self.item_height)
+                self.update_positions()
+
+    def get_visible_panels(self):
+        """
+        Возвращает только те кнопки, которые попадают в видимую зону экрана.
+        Предотвращает клики по невидимым кнопкам, улетевшим вверх или вниз.
+        """
+        visible = []
+        for item in self.items:
+            # Если верхняя граница кнопки внутри окна инвентаря
+            if self.y <= item.rect.y <= (self.y + self.height - 10): # -10 для запаса
+                visible.append(item)
+        return visible
 
 novel = RPGNovel("Malex") 
 
@@ -494,7 +587,9 @@ battle = Menu([btn_hit, input_field, btn_item, btn_mercy])
 
 btn_close_items = Button(700, 20, text="X", func=lambda: close_items_menu())
 inv_img = pygame.image.load('assets/images/UI/inventory.png')
-items_menu = Menu([inv_img,btn_close_items]) 
+# Создаем окно скролла шириной 500px и высотой 300px в координатах (60, 40)
+inv_scroll_list = ScrollList(x=60, y=40, width=150, height=100, item_height=50)
+items_menu = Menu([inv_img,btn_close_items,inv_scroll_list]) 
 items_menu.enabled = False
 
 ingame_map = VisualMap(x=200, y=150, w=600, h=400)
@@ -578,7 +673,68 @@ def rebuild_items_menu(raw_data, on_click_callback):
         
     items_menu.panels = new_panels
 
+def rebuild_items_menu_new(raw_data, on_click_callback, active_idx=None):
+    """Модифицированная функция с поддержкой ScrollList"""
+    malex_img.animation = 2
+    
+    if not raw_data: 
+        items_menu.panels = [
+            Image(0, 0, inv_img), 
+            Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
+            btn_close_items
+        ]
+        return
 
+    items_list = raw_data.split(";")
+    
+    # Генерируем "сырой" список всех кнопок-предметов
+    all_item_buttons = []
+    for i, item_name in enumerate(items_list):
+        btn = Button(
+            60, 40, # Изначальный Y не важен, ScrollList пересчитает его сам
+            text=item_name, 
+            func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name)
+        )
+        all_item_buttons.append(btn)
+    
+    # Скармливаем кнопки нашему скроллеру
+    inv_scroll_list.set_items(all_item_buttons)
+    
+    # Собираем финальные панели для отрисовки
+    update_menu_panels(active_idx, items_list)
+    inv_scroll_list.update_positions()
+
+
+def update_menu_panels(active_idx=None, items_list=None):
+    """
+    Отдельная мини-функция для обновления панелей. 
+    Её нужно вызывать при каждом скролле, чтобы обновлять интерфейс.
+    """
+    # Базовый фон и кнопка закрытия
+    new_panels = [Image(0, 0, inv_img), btn_close_items]
+    
+    # Берем из скролл-листа ТОЛЬКО те кнопки, которые видны сейчас на экране
+    visible_buttons = inv_scroll_list.get_visible_panels()
+    new_panels.extend(visible_buttons)
+    
+    # Дорисовываем контекстные кнопки ("Использовать", "Выбросить"...) рядом с выбранным предметом
+    if active_idx is not None and items_list is not None:
+        # Нам нужно найти, видна ли сейчас кнопка активного предмета
+        for btn in visible_buttons:
+            # Проверяем по тексту (или можно добавить ID в Button)
+            if btn.text == items_list[active_idx]:
+                item_name = items_list[active_idx]
+                
+                # Кнопки действий привязываются к ТЕКУЩЕМУ Y элемента, который сдвинут скроллом!
+                drop_btns = [
+                    Button(220, btn.y, text="Осмотреть", func=lambda: action_inspect(active_idx, item_name)),
+                    Button(420, btn.y, text="Использовать", func=lambda: action_use_item(active_idx, item_name)),
+                    Button(620, btn.y, text="Выбросить", func=lambda: action_drop_item(active_idx, item_name))
+                ]
+                new_panels.extend(drop_btns)
+                break
+                
+    items_menu.panels = new_panels
 
 def close_items_menu(dummy=None):
     malex_img.translate(0, 0, time=500)
@@ -686,12 +842,16 @@ def run(item_idx=None, name=None):
         global is_loading
         
         try:
+            hp = novel.player.gethp()
             is_loading = True
             battle.enabled = False
             
             res = novel.handle("fight_run")
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
+            if novel.player.gethp() < hp:
+                malex_img.short_animation(1,300)
+                malex_img.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -710,9 +870,13 @@ def spare(item_idx=None, name=None):
         try:
             is_loading = True
             battle.enabled = False
+            hp = novel.player.gethp()
             res = novel.handle("fight_spare")
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
+            if novel.player.gethp() < hp:
+                malex_img.short_animation(1,300)
+                malex_img.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -730,17 +894,22 @@ def battle_use_item(item_idx=None, name=None):
         global is_loading
         
         try:
+            hp = novel.player.gethp()
             is_loading = True
             battle.enabled = False
             res = novel.handle("fight_usepotion", payload=item_idx)
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
+            if novel.player.gethp() < hp:
+                malex_img.short_animation(1,300)
+                malex_img.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
             # Выключаем режим загрузки, когда поток завершил работу
             is_loading = False
             battle.enabled = True
+            
     is_loading = True
     display_text.set_text(f"Ты попытался использовать предмет... \n Ждём ответа...")
     threading.Thread(target=fetch_ai_response, daemon=True).start()
@@ -749,15 +918,18 @@ weapon_img.enabled = False
 def fight(item_idx=None, name=None, text=""):
     reset_battle_panels()
     global weapon_img
-    #try:
-    if item_idx:
-        weapon_img = Image(280, 255, pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')) # факэсс я не могу придумать как это реализовать нормально пусть пока так
-    #except:
-    #    pass
+    try:
+        if item_idx != None:
+            weapon_img = Image(280, 255, pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')) # факэсс я не могу придумать как это реализовать нормально пусть пока так
+        else:
+            weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
+    except:
+        pass
     def fetch_ai_response():
         global is_loading
         malex_img.animation = 3
         try:
+            hp = novel.player.gethp()
             is_loading = True
             battle.enabled = False
             weapon_img.enabled = True
@@ -770,6 +942,9 @@ def fight(item_idx=None, name=None, text=""):
             display_text.set_text(res["text"])
             malex_img.animation = 0
             weapon_img.enabled = False
+            if novel.player.gethp() < hp:
+                malex_img.short_animation(1,300)
+                malex_img.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -785,12 +960,7 @@ while True:
     mouse_pos = pygame.mouse.get_pos()
     clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
     #тут херня с обновлением кадров анимации
-    if yo == False:
-        elapsed_time = pygame.time.get_ticks() - start_time
-        #print(elapsed_time)
-        if elapsed_time >= 60000: 
-            display_text.set_text("Йоу?")
-            yo = True
+    
     
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -835,6 +1005,8 @@ while True:
         
         if novel.state == "COMBAT":
             battle.any_event(event)
+            if items_menu.enabled:
+                items_menu.any_event(event)
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
@@ -857,6 +1029,12 @@ while True:
             current_scene = "game"
             
     elif current_scene == "game":
+        if yo == False:
+            elapsed_time = pygame.time.get_ticks() - start_time
+            #print(elapsed_time)
+            if elapsed_time >= 60000: 
+                display_text.set_text("Йоу?")
+                yo = True
         screen.fill((0, 0, 0))
         display_text.update()
         # Рисуем фон локации
