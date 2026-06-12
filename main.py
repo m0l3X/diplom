@@ -79,8 +79,11 @@ class Image:
         self.anim = anim
         self.current_frame = 0
         self.last_update = 0
+        self.enabled = True
 
     def draw(self, surf):
+        if not self.enabled or self.img is None:
+            return
         if not self.anim:
             surf.blit(self.img, (self.rect.x, self.rect.y))
         else:
@@ -386,7 +389,7 @@ class VisualMap:
             surf.blit(text_surf, (coords[0] - text_surf.get_width() // 2, coords[1] - self.node_radius - 20))
 
 
-novel = RPGNovel("Mallex") 
+novel = RPGNovel("Malex") 
 
 
 display_text = PygameTextPrinter(speed_ms=25)
@@ -435,10 +438,12 @@ malex_anim_thinks = [
     pygame.image.load('assets/images/sprites/Pmalexthinks1.png'),
 ]
 malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png')
+malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png')
 # переменніе для управления таймингом анимации
 
-malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall, malex_fall], malex_anim_thinks], animation_speed=600, anim=True)
+malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall, malex_fall], malex_anim_thinks, [malex_attack,malex_attack]], animation_speed=600, anim=True)
 bg_img = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image)
+
 
 
 ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
@@ -510,7 +515,7 @@ def action_special():
         
     malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
     if "BGX" in special_flags.keys():
-        bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else malex_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
+        bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
@@ -683,6 +688,7 @@ def run(item_idx=None, name=None):
         try:
             is_loading = True
             battle.enabled = False
+            
             res = novel.handle("fight_run")
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
@@ -738,15 +744,23 @@ def battle_use_item(item_idx=None, name=None):
     is_loading = True
     display_text.set_text(f"Ты попытался использовать предмет... \n Ждём ответа...")
     threading.Thread(target=fetch_ai_response, daemon=True).start()
-
+weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
+weapon_img.enabled = False
 def fight(item_idx=None, name=None, text=""):
     reset_battle_panels()
+    global weapon_img
+    #try:
+    if item_idx:
+        weapon_img = Image(280, 255, pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')) # факэсс я не могу придумать как это реализовать нормально пусть пока так
+    #except:
+    #    pass
     def fetch_ai_response():
         global is_loading
-        
+        malex_img.animation = 3
         try:
             is_loading = True
             battle.enabled = False
+            weapon_img.enabled = True
             # Тяжелый запрос к серверу (твой novel.handle внутри делает запрос к LLM)
             if(text == "" and item_idx != None):
                 res = novel.handle("fight_attack", payload=item_idx)
@@ -754,6 +768,8 @@ def fight(item_idx=None, name=None, text=""):
                 res = novel.handle("fight_talk", payload=text)
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
+            malex_img.animation = 0
+            weapon_img.enabled = False
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -877,6 +893,7 @@ while True:
             
         elif novel.state == "COMBAT":
             battle.draw(screen)
+            weapon_img.draw(screen)
             # Показываем ХП врага, если идет бой
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)

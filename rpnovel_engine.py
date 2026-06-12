@@ -251,7 +251,7 @@ class RPGNovel():
                             "enemy": self.current_enemy
                         }
                     else:
-                        response["text"] = "Враг не найден."
+                        response["text"] = "Атаковать? Тут никого нет..."
         elif self.state == "COMBAT":
             enemy = self.current_enemy
             if not hasattr(enemy, "npc_id"):
@@ -302,7 +302,10 @@ class RPGNovel():
                         response["text"] = ""
                     else:
                         response["text"] = ";".join([weapon.name for weapon in weapons])
-
+                case "get_weapon_id":
+                    weapons = [item for item in player.inventory if isinstance(item, Weapon)]
+                    weapon = weapons[payload]
+                    response["text"] = weapon.id
                 case "fight_attack":
                     # Payload — выбранное оружие (index)
                     weapons = [item for item in player.inventory if isinstance(item, Weapon)]
@@ -531,6 +534,7 @@ class Enemy:
         self.backstory = backstory
         self.memory =  f"""
 You are **{name}**, an NPC in an RPG game.
+
 
 ABSOLUTE RULES (cannot be broken):
 - You are NOT the player.
