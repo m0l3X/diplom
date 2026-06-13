@@ -920,7 +920,8 @@ def fight(item_idx=None, name=None, text=""):
     global weapon_img
     try:
         if item_idx != None:
-            weapon_img = Image(280, 255, pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')) # факэсс я не могу придумать как это реализовать нормально пусть пока так
+            file = pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')
+            weapon_img = Image(300-file.get_width()//2, 270-file.get_height()//2, file) # факэсс я не могу придумать как это реализовать нормально пусть пока так
         else:
             weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
     except:
