@@ -8,7 +8,15 @@ import random
 import threading
 pygame.init()
 
-btn = pygame.image.load('assets/images/UI/buttonmini.png')
+weight, height = 1000, 800
+screen = pygame.display.set_mode((weight, height))
+pygame.display.set_caption('Gay')
+
+clock = pygame.time.Clock()
+
+btn = pygame.image.load('assets/images/UI/buttonmini.png').convert_alpha()
+btn_next_img =  pygame.image.load('assets/images/UI/next.png').convert_alpha()
+btn_prev_img = pygame.image.load('assets/images/UI/prev.png').convert_alpha()
 class Button:
     def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button")):
         # Если img не передан, используем дефолтный (предполагается, что дефолтный btn загружен глобально)
@@ -24,6 +32,8 @@ class Button:
         height = h if h else self.img.get_height()
         self.rect = pygame.Rect(x, y, width, height)
         
+        self.__text = text
+
         # Анимация текста внутри кнопки
         self.text_manager = PygameTextPrinter(speed_ms=50)
         self.text_manager.set_text(text)
@@ -34,6 +44,7 @@ class Button:
         # Таймеры для визуальных эффектов (поворот)
         self.last_update = 0
         self.speed = 333
+        self.text_surf = ui_font.render(self.__text, True, (0, 0, 0))
         
         self.enabled = True
         self.func = func
@@ -57,18 +68,56 @@ class Button:
         
         surf.blit(self.img, pos)
         
-        # Обновляем состояние печатного текста
-        self.text_manager.update()
-        current_text_string = self.text_manager.get_text()
-        
-        # ОПТИМИЗАЦИЯ: Рендерим текст ТОЛЬКО если строка изменилась
-        if current_text_string != self.last_text or self.text_surf is None:
-            self.last_text = current_text_string
-            self.text_surf = ui_font.render(current_text_string, True, (0, 0, 0))
+        ## Обновляем состояние печатного текста
+        #self.text_manager.update()
+        #current_text_string = self.text_manager.get_text()
+        #
+        ## ОПТИМИЗАЦИЯ: Рендерим текст ТОЛЬКО если строка изменилась
+        #if current_text_string != self.last_text or self.text_surf is None:
+        #    self.last_text = current_text_string
             
         # Отрисовка текста по центру кнопки (или с фиксированным отступом)
         surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
 
+class SelectableButton:
+    def __init__(self, x, y, w=None, h=None, button_array=None,next_img=btn_next_img,prev_img=btn_prev_img):
+        # Задаем размеры rect
+        width = w
+        height = h
+        self.rect = pygame.Rect(x, y, width, height)
+        self.enabled = True
+        self.item = 0
+        self.func = lambda : self.click()
+        self.array = button_array
+        self.next = Button(x+100,y,60,55,img=next_img,func= lambda : self.fnext())
+        self.prev = Button(x-100,y,50,55,img=prev_img,func= lambda : self.fprev())
+    def click(self,mouse_pos):
+        btn_cur = self.array[self.item]
+        if btn_cur.rect.collidepoint(mouse_pos):
+            btn_cur.func()
+        if self.next.rect.collidepoint(mouse_pos):
+            self.fnext()
+        if self.prev.rect.collidepoint(mouse_pos):
+            self.fprev()
+    def fnext(self):
+        self.item = min((self.item+1),len(self.array)-1)
+    def fprev(self):
+        self.item = max((self.item-1),0)
+    def draw(self,surf):
+        if not self.enabled:
+            return  # Просто не рисуем и не обновляем, если кнопка выключена
+        btn_cur = self.array[self.item]
+        btn_cur.rect.x = self.rect.x
+        btn_cur.rect.y = self.rect.y
+        btn_cur.draw(surf)
+        self.next.rect.x = self.rect.x+200
+        self.next.rect.y = self.rect.y 
+        self.next.draw(surf) if self.item != len(self.array)-1 else ""
+        self.prev.rect.x = self.rect.x-200
+        self.prev.rect.y = self.rect.y
+        self.prev.draw(surf) if self.item != 0 else ""
+
+        
 class Image:
     def __init__(self, x, y, img, animations=None, animation_speed=500,anim=False):
         self.img = img
@@ -95,6 +144,8 @@ class Image:
             surf.blit(self.animation_frames[self.current_frame], (self.rect.x, self.rect.y))
             
     def translate(self, newx, newy, time=500):
+        if newx == self.rect.x and newy == self.rect.y:
+            return
         def lerp(a: float, b: float, t: float) -> float: # larping in python 😭
             return (1 - t) * a + t * b
         def smoothstep(a: float, b: float, t: float) -> float:
@@ -151,21 +202,24 @@ class Menu:
     def draw(self, surf):
         if not self.enabled: return
         for item in self.panels:
-            if isinstance(item, Button):
-                item.draw(surf)
             if isinstance(item, VisualMap):
                 item.draw(surf, novel.player)
+                continue
             else:
                 item.draw(surf)
 
     def click(self, mouse_pos):
         if not self.enabled: return
-        reset_afk()
         for btn in self.panels:
             if isinstance(btn, Button):
                 # Проверяем активность кнопки ДО проверки коллизии
                 if btn.enabled and btn.rect.collidepoint(mouse_pos):
                     btn.func()
+                    return True # Возвращаем True, если клик успешно обработан
+            if isinstance(btn, SelectableButton):
+                # Проверяем активность кнопки ДО проверки коллизии
+                if btn.enabled:
+                    btn.click(mouse_pos)
                     return True # Возвращаем True, если клик успешно обработан
             #if isinstance(btn, TextInputField):
             #    if btn.enabled and btn.rect.collidepoint(mouse_pos):
@@ -176,6 +230,7 @@ class Menu:
             #        return True
         return False
     def any_event(self, event):
+        reset_afk()
         if not self.enabled: return
 
         for btn in self.panels:
@@ -219,17 +274,17 @@ class TextInputField:
             if self.rect.collidepoint(event.pos):
                 self.active = True
                 self.text = "" if self.text == "Сказать..." else self.text
-                malex_img.animation = 2
+                image_malex.animation = 2
             else:
                 self.active = False
-                malex_img.animation = 0
+                image_malex.animation = 0
 
         # Если поле «в фокусе», перехватываем клавиатуру
         if self.active and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_RETURN:
                 # Если нажали Enter и текст не пустой — отправляем данные в callback
                 if self.text.strip() and self.on_submit:
-                    malex_img.animation = 0
+                    image_malex.animation = 0
                     self.on_submit(self.text)
                     self.text = ""  # Очищаем поле после отправки
             elif event.key == pygame.K_BACKSPACE:
@@ -487,6 +542,7 @@ novel = RPGNovel("Malex")
 
 display_text = PygameTextPrinter(speed_ms=25)
 display_text.set_text("missingno")
+last_text_string = ""
 
 # Цвета
 black = (0, 0, 0) 
@@ -501,18 +557,18 @@ names_font = pygame.font.SysFont('Freeride', 35)
 
 # Загрузка ассетов (код напарника)
 #nemo_image = pygame.image.load('assets/images/sprites/enemy/nemo.png')
-background_image = pygame.image.load('assets/images/fon.png')
+imgfile_bg = pygame.image.load('assets/images/fon.png').convert()
 bgs = {}
 novel.handle("load")
 for location in novel.player.current_world.locations:
     if os.path.exists(f'assets/images/locations/{location.id}.png'):
-        bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png')
+        bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png').convert()
 
-background_menu = pygame.image.load('assets/images/UI/menu_fon.png')
-text_box_image = pygame.image.load('assets/images/UI/button.png')
+imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon.png').convert()
+imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha()
 
-button_play = pygame.image.load('assets/images/UI/play.png') 
-button_playh = pygame.image.load('assets/images/UI/play1.png')
+imgfile_play0 = pygame.image.load('assets/images/UI/play.png') 
+imgfile_play1 = pygame.image.load('assets/images/UI/play1.png')
 
 button_x, button_y = 0, 20
 click_zone = pygame.Rect(350, 340, 300, 100)
@@ -522,29 +578,29 @@ click_zone = pygame.Rect(350, 340, 300, 100)
 
 #херня с анимацией ..dunno если честно куда ее вставить. так что пусть сюда.. ):
 #тут загружаются кадрі анимации
-malex_anim_static = [
-    pygame.image.load('assets/images/sprites/Pmalex.png'),
-    pygame.image.load('assets/images/sprites/Pmalex01.png'),
+anim_malex_static = [
+    pygame.image.load('assets/images/sprites/Pmalex.png').convert_alpha(),
+    pygame.image.load('assets/images/sprites/Pmalex01.png').convert_alpha(),
 ]
-malex_anim_thinks = [
-    pygame.image.load('assets/images/sprites/Pmalexthinks.png'),
-    pygame.image.load('assets/images/sprites/Pmalexthinks1.png'),
+anim_malex_thinks = [
+    pygame.image.load('assets/images/sprites/Pmalexthinks.png').convert_alpha(),
+    pygame.image.load('assets/images/sprites/Pmalexthinks1.png').convert_alpha(),
 ]
-malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png')
-malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png')
+imgfile_malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png').convert_alpha()
+imgfile_malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png').convert_alpha()
 # переменніе для управления таймингом анимации
 
-malex_img = Image(0, 0, malex_anim_static[0], animations=[malex_anim_static, [malex_fall, malex_fall], malex_anim_thinks, [malex_attack,malex_attack]], animation_speed=600, anim=True)
-bg_img = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image)
+image_malex = Image(0, 0, anim_malex_static[0], animations=[anim_malex_static, [imgfile_malex_fall, imgfile_malex_fall], anim_malex_thinks, [imgfile_malex_attack,imgfile_malex_attack]], animation_speed=600, anim=True)
+image_bg = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg)
 
 
 
-ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
+image_ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
 start_time = 0
 def action_move(direction):
     res = novel.handle("move", direction)
     special_flags = novel.get_player_location().special_flags
-    malex_img.translate(special_flags["MX"], special_flags["MY"], time=300) if "MX" in special_flags.keys()  else malex_img.translate(0, 0, time=300)
+    image_malex.translate(special_flags["MX"], special_flags["MY"], time=300) if "MX" in special_flags.keys()  else image_malex.translate(0, 0, time=300)
     global start_time
     start_time = pygame.time.get_ticks()
     display_text.set_text(res["text"])
@@ -552,12 +608,13 @@ def action_move(direction):
 def action_start_combat(enemy_idx=1):
     res = novel.handle("start_combat", enemy_idx)
     display_text.set_text(res["text"])
-    global cur_enemy_img
+    global cur_enemy_imgfile
     enemy_id = res["extra_data"]["enemy"].id if "extra_data" in res.keys() and "enemy" in res["extra_data"].keys() else "missingno"
     try:
-        cur_enemy_img = pygame.image.load(f'assets/images/sprites/enemies/{enemy_id}.png')
+        cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/{enemy_id}.png').convert_alpha()
     except:
-        cur_enemy_img = pygame.image.load(f'assets/images/sprites/enemies/missingno.png')
+        cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/missingno.png').convert_alpha()
+inv_imgfile = pygame.image.load('assets/images/UI/inventory.png').convert_alpha()
 
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
 btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : action_move("юг"), img="no" )
@@ -573,7 +630,7 @@ btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_
 
 btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'enabled', True))
 
-freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, ui_cross])
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, image_ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 point=200
@@ -582,14 +639,16 @@ btn_hit = Button(220, point, text="Ударить", func=lambda: open_player_wea
 input_field = TextInputField(220, point + offset, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
 btn_item = Button(220, point + offset*2, text="Предмет", func=lambda: battle_player_inventory())
 btn_mercy = Button(220, point + offset*3, text="ПОЩАДА", func=lambda: open_mercy_buttons())
+btn_array = SelectableButton(220, point-offset, 50, 60, [])
+btn_array.enabled = False
 
-battle = Menu([btn_hit, input_field, btn_item, btn_mercy])
+
+battle = Menu([btn_hit, input_field, btn_item, btn_mercy, btn_array])
 
 btn_close_items = Button(700, 20, text="X", func=lambda: close_items_menu())
-inv_img = pygame.image.load('assets/images/UI/inventory.png')
 # Создаем окно скролла шириной 500px и высотой 300px в координатах (60, 40)
 inv_scroll_list = ScrollList(x=60, y=40, width=150, height=100, item_height=50)
-items_menu = Menu([inv_img,btn_close_items,inv_scroll_list]) 
+items_menu = Menu([inv_imgfile,btn_close_items,inv_scroll_list]) 
 items_menu.enabled = False
 
 ingame_map = VisualMap(x=200, y=150, w=600, h=400)
@@ -604,13 +663,13 @@ def action_special():
     res = novel.handle("move", "spec")
     display_text.set_text(res["text"])
     special_flags = novel.get_player_location().special_flags
-    bg_img.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else background_image
+    image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
     if "MX" in special_flags.keys():
-        malex_img.translate(special_flags["MX"], special_flags["MY"], time=special_flags["MT"]) if "MT" in special_flags.keys()  else malex_img.translate(special_flags["MX"], special_flags["MY"], time=1000)
+        image_malex.translate(special_flags["MX"], special_flags["MY"], time=special_flags["MT"]) if "MT" in special_flags.keys()  else image_malex.translate(special_flags["MX"], special_flags["MY"], time=1000)
         
-    malex_img.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
+    image_malex.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
     if "BGX" in special_flags.keys():
-        bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
+        image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
@@ -650,17 +709,17 @@ def rebuild_items_menu(raw_data, on_click_callback):
     Принимает строку с предметами через ';' и функцию, 
     которая должна выполниться при клике на элемент.
     """
-    malex_img.animation = 2
+    image_malex.animation = 2
     if not raw_data: 
         items_menu.panels = [
-            Image(0, 0, inv_img), 
+            Image(0, 0, inv_imgfile), 
             Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
             btn_close_items
         ]
         return
 
     items_list = raw_data.split(";")
-    new_panels = [Image(0, 0, inv_img),btn_close_items]
+    new_panels = [Image(0, 0, inv_imgfile),btn_close_items]
     
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
@@ -675,11 +734,11 @@ def rebuild_items_menu(raw_data, on_click_callback):
 
 def rebuild_items_menu_new(raw_data, on_click_callback, active_idx=None):
     """Модифицированная функция с поддержкой ScrollList"""
-    malex_img.animation = 2
+    image_malex.animation = 2
     
     if not raw_data: 
         items_menu.panels = [
-            Image(0, 0, inv_img), 
+            Image(0, 0, inv_imgfile), 
             Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
             btn_close_items
         ]
@@ -711,7 +770,7 @@ def update_menu_panels(active_idx=None, items_list=None):
     Её нужно вызывать при каждом скролле, чтобы обновлять интерфейс.
     """
     # Базовый фон и кнопка закрытия
-    new_panels = [Image(0, 0, inv_img), btn_close_items]
+    new_panels = [Image(0, 0, inv_imgfile), btn_close_items]
     
     # Берем из скролл-листа ТОЛЬКО те кнопки, которые видны сейчас на экране
     visible_buttons = inv_scroll_list.get_visible_panels()
@@ -737,9 +796,9 @@ def update_menu_panels(active_idx=None, items_list=None):
     items_menu.panels = new_panels
 
 def close_items_menu(dummy=None):
-    malex_img.translate(0, 0, time=500)
+    image_malex.translate(0, 0, time=500)
     items_menu.enabled = False
-    malex_img.animation = 0
+    image_malex.animation = 0
 
 def drop_buttons(item_idx, name):
     open_player_inventory()
@@ -761,7 +820,7 @@ def open_room_items():
     items_menu.enabled = True
     room_data = novel.handle("checkroom_internal")["text"]
     # Строим меню предметов комнаты, при клике сработает подбор
-    malex_img.translate(100, 0, time=200)
+    image_malex.translate(100, 0, time=200)
     
     rebuild_items_menu(room_data, action_pick_up)
 
@@ -772,6 +831,7 @@ def open_player_weapons():
     #items_menu.enabled = True
     raw_data = novel.handle("get_weapons")["text"]
     items_list = raw_data.split(";")
+    btns = []
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
         btn = Button(
@@ -779,8 +839,9 @@ def open_player_weapons():
             text=item_name, 
             func=lambda item_idx=i, name=item_name: fight(item_idx, name)
         )
-        battle.panels.append(btn)
-    
+        btns.append(btn)
+    btn_array.array = btns
+    btn_array.enabled = True
     print("Оружия???? Зачем тебе оружия, бака!! Ты кого убить там собрался???????? Н-но, держи, будь аккуратнее, с-семпай...") # why are you so tsundere
 
 def open_mercy_buttons():
@@ -820,11 +881,6 @@ def open_player_inventory():
 #    return payload
 
 current_scene = "menu"
-weight, height = 1000, 800
-screen = pygame.display.set_mode((weight, height))
-pygame.display.set_caption('Gay')
-
-clock = pygame.time.Clock()
 
 def reset_afk():
     global yo
@@ -833,7 +889,8 @@ def reset_afk():
     start_time = pygame.time.get_ticks()
 
 def reset_battle_panels():
-    battle.panels = [btn_hit, input_field, btn_item, btn_mercy]
+    battle.panels = [btn_hit, input_field, btn_item, btn_mercy, btn_array]
+    btn_array.enabled = False
     input_field.text = "Сказать..."
 
 def run(item_idx=None, name=None):
@@ -850,8 +907,8 @@ def run(item_idx=None, name=None):
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
             if novel.player.gethp() < hp:
-                malex_img.short_animation(1,300)
-                malex_img.shake()
+                image_malex.short_animation(1,300)
+                image_malex.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -875,8 +932,8 @@ def spare(item_idx=None, name=None):
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
             if novel.player.gethp() < hp:
-                malex_img.short_animation(1,300)
-                malex_img.shake()
+                image_malex.short_animation(1,300)
+                image_malex.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -901,8 +958,8 @@ def battle_use_item(item_idx=None, name=None):
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
             if novel.player.gethp() < hp:
-                malex_img.short_animation(1,300)
-                malex_img.shake()
+                image_malex.short_animation(1,300)
+                image_malex.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -928,7 +985,7 @@ def fight(item_idx=None, name=None, text=""):
         pass
     def fetch_ai_response():
         global is_loading
-        malex_img.animation = 3
+        image_malex.animation = 3
         try:
             hp = novel.player.gethp()
             is_loading = True
@@ -941,11 +998,11 @@ def fight(item_idx=None, name=None, text=""):
                 res = novel.handle("fight_talk", payload=text)
             # Передаем текст в принтер (это безопасно делать из потока)
             display_text.set_text(res["text"])
-            malex_img.animation = 0
+            image_malex.animation = 0
             weapon_img.enabled = False
             if novel.player.gethp() < hp:
-                malex_img.short_animation(1,300)
-                malex_img.shake()
+                image_malex.short_animation(1,300)
+                image_malex.shake()
         except Exception as e:
             display_text.set_text(f"Ошибка связи с ИИ: {e}")
         finally:
@@ -957,6 +1014,7 @@ def fight(item_idx=None, name=None, text=""):
     threading.Thread(target=fetch_ai_response, daemon=True).start() 
 
 yo = True
+text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
 while True:
     mouse_pos = pygame.mouse.get_pos()
     clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
@@ -977,8 +1035,8 @@ while True:
                     res = novel.handle("load") # Получаем описание локации при входе в игру
                     display_text.set_text(res["text"])
                     special_flags = novel.get_player_location().special_flags
-                    malex_img.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
-                    bg_img.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
+                    image_malex.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
+                    image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
                     current_scene = "intro"
                     
             elif current_scene == "intro":
@@ -988,15 +1046,15 @@ while True:
             elif current_scene == "game":
                 if(items_menu.enabled):
                     items_menu.click(mouse_pos)
-                if(map_menu.enabled):
+                elif(map_menu.enabled):
                     map_menu.click(mouse_pos)
                 else:
                     
                     # Если мы в обычном режиме исследования
                     if novel.state == "EXPLORING":
                         freeroam.click(mouse_pos)
-                        if btn_spec.enabled:
-                            intro_menu.click(mouse_pos)
+                        if btn_spec.enabled and btn_spec.rect.collidepoint(mouse_pos):
+                            btn_spec.func()
                         
 
                     # Если движок переключился в режим боя
@@ -1006,60 +1064,70 @@ while True:
         
         if novel.state == "COMBAT":
             battle.any_event(event)
-            if items_menu.enabled:
-                items_menu.any_event(event)
+            #if items_menu.enabled:  ### OBSOLETE: uncomment this shit if you are using new rebuild items menu (with scroll things)
+            #    items_menu.any_event(event)
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
-        screen.blit(background_menu, (0, 0))
+        screen.blit(imgfile_bg_menu, (0, 0))
         if click_zone.collidepoint(mouse_pos):
-            screen.blit(button_playh, (button_x, button_y)) 
+            screen.blit(imgfile_play1, (button_x, button_y)) 
         else:
-            screen.blit(button_play, (button_x, button_y))  
+            screen.blit(imgfile_play0, (button_x, button_y))  
     elif current_scene == "intro":
         screen.fill((0, 0, 0))
         display_text.update()
-        bg_img.draw(screen)
-        malex_img.draw(screen)
+        
+        # ОПТИМИЗАЦИЯ: Рендерим текст ТОЛЬКО если строка изменилась
+        if last_text_string != display_text.get_text():
+            last_text_string = display_text.get_text()
+            text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
+        
+        image_bg.draw(screen)
+        image_malex.draw(screen)
         btn_spec.enabled = True
-        screen.blit(text_box_image, (0.5 * weight - text_box_image.get_width() // 2 - 10, 0.5 * height - text_box_image.get_height() // 2 + 30)) # Рисуем текстуру плашки поверх
+        screen.blit(imgfile_textbox, (-10,30)) # Рисуем текстуру плашки поверх
         intro_menu.draw(screen)
-        text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
         screen.blit(text_surface, (120, 560))  
         if "intro" not in novel.player.location:
             current_scene = "game"
             
     elif current_scene == "game":
-        if yo == False:
-            elapsed_time = pygame.time.get_ticks() - start_time
-            #print(elapsed_time)
-            if elapsed_time >= 60000: 
-                display_text.set_text("Йоу?")
-                yo = True
+        #if yo == False:
+        #    elapsed_time = pygame.time.get_ticks() - start_time
+        #    #print(elapsed_time)
+        #    if elapsed_time >= 60000: 
+        #        display_text.set_text("Йоу?")
+        #        yo = True
         screen.fill((0, 0, 0))
         display_text.update()
+        
         # Рисуем фон локации
         if novel.player.location not in bgs:
-            screen.blit(background_image, (0.5 * weight - background_image.get_width() // 2, 0.5 * height - background_image.get_height() // 2 ))
+            screen.blit(imgfile_bg, (0,0))
         else:
-            screen.blit(bgs[novel.player.location], (0.5 * weight - bgs[novel.player.location].get_width() // 2, 0.5 * height - bgs[novel.player.location].get_height() // 2 ))
+            screen.blit(bgs[novel.player.location], (0,0 ))
         
         # Рисуем Спрайты персонажей
-        malex_img.draw(screen)
+        image_malex.draw(screen)
 
         if novel.state == "COMBAT":
-            screen.blit(cur_enemy_img, (0.5 * weight - cur_enemy_img.get_width() // 2 + 20, 0.5 * height - cur_enemy_img.get_height() // 2 + 30)) if cur_enemy_img else ""
+            screen.blit(cur_enemy_imgfile, (20, 30)) if cur_enemy_imgfile else ""
         # --- ДИНАМИЧЕСКИЙ ТЕКСТ ИЗ ДВИЖКА ---
 
-        screen.blit(text_box_image, (0.5 * weight - text_box_image.get_width() // 2 - 10, 0.5 * height - text_box_image.get_height() // 2 + 30)) # Рисуем текстуру плашки поверх
+        screen.blit(imgfile_textbox, (- 10, 30)) # Рисуем текстуру плашки поверх
         # Рендерим текущий текст, полученный из novel.handle()
-        text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
+        # ОПТИМИЗАЦИЯ: Рендерим текст ТОЛЬКО если строка изменилась
+        if last_text_string != display_text.get_text():
+            last_text_string = display_text.get_text()
+            text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700)
+        #text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
         screen.blit(text_surface, (120, 560))
         
         # --- ИНТЕРФЕЙС И КНОПКИ ДЕЙСТВИЙ ---
         # Выводим ХП игрока сверху
-        hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
-        screen.blit(hp_text, (30, 145))
+        #hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
+        #screen.blit(hp_text, (30, 145))
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
@@ -1077,8 +1145,10 @@ while True:
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)
                 screen.blit(enemy_hp_text, (780, 160))
-        items_menu.draw(screen)
-        map_menu.draw(screen)
+        if items_menu.enabled:
+            items_menu.draw(screen)
+        if map_menu.enabled:
+            map_menu.draw(screen)
         if "intro" in novel.player.location:
             current_scene = "intro"
 

@@ -3,37 +3,15 @@ import json
 #from PIL import Image
 import objectoriebteddatabase as OOPdb
 import hashlib
-import keyboard
 import base64
 import msvcrt
 import requests
 import random
-IP = "http://192.168.1.250:8080" #"http://plovstation.theworkpc.com:8080"
-
+IP = "http://192.168.1.250:8080" #"http://213.211.74.112:8080" #
 def hashstr(st):
     return hashlib.sha256(st.encode('utf-8')).hexdigest()
 
-def cprint(text, sleep=1, end='\n', speed=0.01):
-    skip = False
-    for c in text:
-        if keyboard.is_pressed('space'):
-            skip = True
-        
-        print(c, end='', flush=True)
-        
-        if not skip:
-            time.sleep(speed)
-            
-    print(end, end='')
-    
-    # Очистка буфера перед завершением функции
-    if skip:
-        # Пока в буфере есть нажатия, просто «забираем» их
-        while msvcrt.kbhit():
-            msvcrt.getch()
-            
-    if not skip:
-        time.sleep(sleep)
+
 
 
 
