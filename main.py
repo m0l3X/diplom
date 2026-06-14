@@ -21,7 +21,7 @@ class Button:
     def __init__(self, x, y, w=None, h=None, text="", img=None, 
                  func=lambda: print("hi i'm button"), 
                  on_hover=lambda x: print(f"hey that's my shoulder"), 
-                 off_hover=lambda x: print(f"damn")):
+                 off_hover=lambda x: print(f"damn"), wobble=True):
         
         if img != "no":
             self.orig_img = img if img else btn 
@@ -55,6 +55,7 @@ class Button:
         self.overlay_img = None  # Для эффекта при наведении (можно задать картинку или цветовую заливку)
         # --- КЭШИРОВАНИЕ ПОВОРОТОВ (ОПТИМИЗАЦИЯ ПОКАЧИВАНИЯ) ---
         self.rotated_imgs = {}
+        self.wobble = wobble
         if self.orig_img:
             # Заранее генерируем повернутые картинки для углов -4, -2, 0, 2, 4 градуса
             for r in range(-2, 3):
@@ -100,7 +101,7 @@ class Button:
                 self.rect.y = int(self.smoothstep(self.trans_start_y, self.trans_target_y, t))
 
         # 2. ОПТИМИЗИРОВАННОЕ ПОКАЧИВАНИЕ (Брать из кэша, а не крутить на лету)
-        if current_time - self.last_update >= self.speed:
+        if current_time - self.last_update >= self.speed and self.wobble:
             r = random.randint(-2, 2)
             angle = r * 2
             # Достаем готовую картинку из словаря (это мгновенно)
@@ -505,14 +506,18 @@ class Menu:
         for btn in self.panels:
             if isinstance(btn, TextInputField):
                 btn.handle_event(event)
-            if isinstance(btn, Button) and event.type == pygame.MOUSEMOTION:
-                if btn.enabled and btn.rect.collidepoint(event.pos):
-                    if not btn.hovered:
-                        btn.on_hover(btn)
-                        btn.hovered = True
-                elif btn.hovered:
-                    btn.off_hover(btn)
-                    btn.hovered = False
+            if isinstance(btn, Button):
+                if event.type == pygame.MOUSEMOTION:
+                    if btn.enabled and btn.rect.collidepoint(event.pos):
+                        if not btn.hovered:
+                            btn.on_hover(btn)
+                            btn.hovered = True
+                    elif btn.hovered:
+                        btn.off_hover(btn)
+                        btn.hovered = False
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if btn.enabled and btn.rect.collidepoint(event.pos):
+                        btn.func()
                 
 
 class TextInputField:
@@ -850,12 +855,27 @@ imgfile_gamename = pygame.image.load('assets/images/UI/game.png').convert_alpha(
 cursor_img = pygame.image.load('assets/images/UI/cursor.png').convert_alpha()
 malex_click = pygame.image.load('assets/images/UI/malexclick.png').convert_alpha()
 
-button_x, button_y = 0, 0
-click_zone = pygame.Rect(65, 290, 255, 90)
 
-exit_button_x, exit_button_y = 0, 0
-exit_click_zone = pygame.Rect(65, 410, 255, 90)
+#button_x, button_y = 0, 0
+#click_zone = pygame.Rect()
+#
+#exit_button_x, exit_button_y = 0, 0
+#exit_click_zone = pygame.Rect()
+def start_game_callback():
+    global current_scene
+    res = novel.handle("load") # Получаем описание локации при входе в игру
+    display_text.set_text(res["text"])
+    special_flags = novel.get_player_location().special_flags
+    image_malex.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
+    image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
+    current_scene = "intro"
+btn_play = Button(65, 290, 255, 90, img=imgfile_play0, func=start_game_callback,
+                  on_hover=lambda b: setattr(b, 'img', imgfile_play1),
+                  off_hover=lambda b: setattr(b, 'img', b.orig_img),wobble=False)
 
+btn_exit = Button(65, 410, 255, 90, img=imgfile_exit0, func=lambda: [pygame.quit(), sus.exit()],
+                  on_hover=lambda b: setattr(b, 'img', imgfile_exit1),
+                  off_hover=lambda b: setattr(b, 'img', b.orig_img),wobble=False)
 # Зоны для кликов в самой игре (Кнопки действий)
 # Формат: pygame.Rect(X, Y, ШИРИНА, ВЫСОТА)
 
@@ -880,67 +900,15 @@ imgfile_malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png
 
 image_malex = Image(0, 0, anim_malex_static[0], animations=[anim_malex_static, [imgfile_malex_fall, imgfile_malex_fall], anim_malex_thinks, [imgfile_malex_attack,imgfile_malex_attack]], animation_speed=600, anim=True)
 image_bg = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg)
-malex_menu = Image(0, 0, anim_malex_menu[0], animations=[anim_malex_menu], animation_speed=800, anim=True) #какая тут ошибка гайс
+image_malex_menu = Image(0, 0, anim_malex_menu[0], animations=[anim_malex_menu,[malex_click,malex_click]], animation_speed=800, anim=True) #какая тут ошибка гайс
 
 # --- КЛИКАБЕЛЬНЫЙ СПРАЙТ В МЕНЮ ---
 # Здесь лежат параметры хитбокса клика по спрайту Малекс в главном меню.
-# Если надо подогнать область клика, меняем только эти 4 значения.
-malex_menu_click_hitbox_x = 590
-malex_menu_click_hitbox_y = 180
-malex_menu_click_hitbox_w = 210
-malex_menu_click_hitbox_h = 200
-
-# Сам прямоугольник для проверки клика по спрайту.
-# Его не правим напрямую, он строится из 4 чисел выше.
-malex_menu_click_hitbox = pygame.Rect(
-    malex_menu_click_hitbox_x,
-    malex_menu_click_hitbox_y,
-    malex_menu_click_hitbox_w,
-    malex_menu_click_hitbox_h,
-)
-
-# Сколько миллисекунд спрайт должен оставаться в состоянии клика, прежде чем вернуться к обычной анимации меню.
-malex_menu_click_duration_ms = 700
-
-# Если True, вокруг хитбокса будет рисоваться зелёная рамка для отладки.
-show_malex_menu_hitbox = False
-# Отладочная рамка для кнопки выхода. Можно удалить вместе с блоком отрисовки ниже, если она больше не нужна.
-show_exit_hitbox = False
 
 
-# Храним момент клика. Когда значение None, значит спрайт сейчас в обычном режиме.
-malex_menu_click_started_at = None
+btn_malex_menu_click = Button(590,180,210,200, func=lambda: image_malex_menu.short_animation(1,700))
 
-
-def start_malex_menu_click():
-    """Переключает спрайт меню в статичный клик-спрайт и запускает таймер возврата."""
-    global malex_menu_click_started_at
-
-    # Останавливаем анимацию, подменяем картинку на спрайт клика и фиксируем время.
-    malex_menu.anim = False
-    malex_menu.img = malex_click
-    malex_menu_click_started_at = pygame.time.get_ticks()
-
-
-def update_malex_menu_click_state():
-    """Каждый кадр проверяет, не пора ли вернуть обычный анимированный спрайт."""
-    global malex_menu_click_started_at
-
-    # Если клика не было, ничего делать не нужно.
-    if malex_menu_click_started_at is None:
-        return
-
-    now = pygame.time.get_ticks()
-
-    # Когда таймер истёк, возвращаем исходную анимацию меню.
-    if now - malex_menu_click_started_at >= malex_menu_click_duration_ms:
-        malex_menu.anim = True
-        malex_menu.animation = 0
-        malex_menu.current_frame = 0
-        malex_menu.last_update = now
-        malex_menu.img = anim_malex_menu[0]
-        malex_menu_click_started_at = None
-
+menu_main = Menu([btn_play,btn_exit,btn_malex_menu_click,image_malex_menu])
 
 image_ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
 start_time = 0
@@ -1343,27 +1311,12 @@ while True:
             pygame.quit()
             sus.exit()
             
+        if current_scene == "menu":
+            menu_main.any_event(event)
         # ОБРАБОТКА КЛИКОВ МЫШКИ
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            
-            # Клик в Главном Меню
-            if current_scene == "menu":
-                # Сначала проверяем клик по спрайту Malex.
-                # Если он попал в хитбокс, запускаем временную реакцию спрайта.
-                if exit_click_zone.collidepoint(mouse_pos):
-                    pygame.quit()
-                    sus.exit()
-                elif malex_menu_click_hitbox.collidepoint(mouse_pos):
-                    start_malex_menu_click()
-                elif click_zone.collidepoint(mouse_pos):
-                    res = novel.handle("load") # Получаем описание локации при входе в игру
-                    display_text.set_text(res["text"])
-                    special_flags = novel.get_player_location().special_flags
-                    image_malex.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
-                    image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
-                    current_scene = "intro"
-                    
-            elif current_scene == "intro":
+
+            if current_scene == "intro":
                 intro_menu.click(mouse_pos)
 
             # КЛИКИ ВНУТРИ ИГРЫ (Связь с бэкендом)
@@ -1393,41 +1346,11 @@ while True:
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
-        # Перед отрисовкой проверяем, не закончился ли эффект клика по Malex.
-        update_malex_menu_click_state()
-
+        
         screen.blit(imgfile_bg_menu, (0, 0))
         screen.blit(imgfile_gamename, (0, 0))
-        malex_menu.draw(screen)
-
-        if exit_click_zone.collidepoint(mouse_pos):
-            screen.blit(imgfile_exit1, (exit_button_x, exit_button_y))
-        else:
-            screen.blit(imgfile_exit0, (exit_button_x, exit_button_y))
-
-        # Отладочная зелёная рамка помогает увидеть реальную область клика.
-        # Если она больше не нужна, просто поставь show_malex_menu_hitbox = False.
-        if show_malex_menu_hitbox:
-            pygame.draw.rect(
-                screen,
-                (0, 255, 0),
-                malex_menu_click_hitbox,
-                2,
-            )
-
-        # Отладочная зелёная рамка для кнопки выхода.
-        if show_exit_hitbox:
-            pygame.draw.rect(
-                screen,
-                (0, 255, 0),
-                exit_click_zone,
-                2,
-            )
-
-        if click_zone.collidepoint(mouse_pos):
-            screen.blit(imgfile_play1, (button_x, button_y))
-        else:
-            screen.blit(imgfile_play0, (button_x, button_y))  
+        menu_main.draw(screen)
+        
     elif current_scene == "intro":
         screen.fill((0, 0, 0))
         display_text.update()
