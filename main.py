@@ -839,14 +839,16 @@ for location in novel.player.current_world.locations:
     if os.path.exists(f'assets/images/locations/{location.id}.png'):
         bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png').convert()
 
-imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon.png').convert()
+imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon1.png').convert()
 imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha()
 
-imgfile_play0 = pygame.image.load('assets/images/UI/play.png') 
-imgfile_play1 = pygame.image.load('assets/images/UI/play1.png')
+imgfile_play0 = pygame.image.load('assets/images/UI/Pplay.png') 
+imgfile_play1 = pygame.image.load('assets/images/UI/Pplay1.png')
+imgfile_gamename = pygame.image.load('assets/images/UI/game.png').convert_alpha()
+cursor_img = pygame.image.load('assets/images/UI/cursor.png').convert_alpha()
 
-button_x, button_y = 0, 20
-click_zone = pygame.Rect(350, 340, 300, 100)
+button_x, button_y = 0, 0
+click_zone = pygame.Rect(65, 290, 255, 90)
 
 # Зоны для кликов в самой игре (Кнопки действий)
 # Формат: pygame.Rect(X, Y, ШИРИНА, ВЫСОТА)
@@ -861,13 +863,18 @@ anim_malex_thinks = [
     pygame.image.load('assets/images/sprites/Pmalexthinks.png').convert_alpha(),
     pygame.image.load('assets/images/sprites/Pmalexthinks1.png').convert_alpha(),
 ]
+anim_malex_menu = [
+    pygame.image.load('assets/images/UI/malex.png').convert_alpha(),
+    pygame.image.load('assets/images/UI/malex1.png').convert_alpha(),
+]
+
 imgfile_malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png').convert_alpha()
 imgfile_malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png').convert_alpha()
 # переменніе для управления таймингом анимации
 
 image_malex = Image(0, 0, anim_malex_static[0], animations=[anim_malex_static, [imgfile_malex_fall, imgfile_malex_fall], anim_malex_thinks, [imgfile_malex_attack,imgfile_malex_attack]], animation_speed=600, anim=True)
 image_bg = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg)
-
+malex_menu = Image(0, 0, anim_malex_menu[0], animations=[anim_malex_menu], animation_speed=800, anim=True) #какая тут ошибка гайс
 
 
 image_ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
@@ -1257,6 +1264,9 @@ def fight(item_idx=None, name=None, text=""):
 
 yo = True
 text_surface = dialog_font.render(display_text.get_text(), True, black, wraplength=700) 
+
+# Скрываем стандартный системный курсор
+pygame.mouse.set_visible(False)
 while True:
     mouse_pos = pygame.mouse.get_pos()
     clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
@@ -1297,7 +1307,6 @@ while True:
                         freeroam.click(mouse_pos)
                         if btn_spec.enabled and btn_spec.rect.collidepoint(mouse_pos):
                             btn_spec.func()
-                        
 
                     # Если движок переключился в режим боя
                     elif novel.state == "COMBAT":
@@ -1313,8 +1322,10 @@ while True:
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
         screen.blit(imgfile_bg_menu, (0, 0))
+        screen.blit(imgfile_gamename, (0, 0))
+        malex_menu.draw(screen)
         if click_zone.collidepoint(mouse_pos):
-            screen.blit(imgfile_play1, (button_x, button_y)) 
+            screen.blit(imgfile_play1, (button_x, button_y))
         else:
             screen.blit(imgfile_play0, (button_x, button_y))  
     elif current_scene == "intro":
@@ -1395,4 +1406,7 @@ while True:
         if "intro" in novel.player.location:
             current_scene = "intro"
 
+    screen.blit(cursor_img, pygame.mouse.get_pos())
+
     pygame.display.flip()
+    
