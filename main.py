@@ -844,11 +844,17 @@ imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha
 
 imgfile_play0 = pygame.image.load('assets/images/UI/Pplay.png') 
 imgfile_play1 = pygame.image.load('assets/images/UI/Pplay1.png')
+imgfile_exit0 = pygame.image.load('assets/images/UI/exit.png')
+imgfile_exit1 = pygame.image.load('assets/images/UI/exit1.png')
 imgfile_gamename = pygame.image.load('assets/images/UI/game.png').convert_alpha()
 cursor_img = pygame.image.load('assets/images/UI/cursor.png').convert_alpha()
+malex_click = pygame.image.load('assets/images/UI/malexclick.png').convert_alpha()
 
 button_x, button_y = 0, 0
 click_zone = pygame.Rect(65, 290, 255, 90)
+
+exit_button_x, exit_button_y = 0, 0
+exit_click_zone = pygame.Rect(65, 410, 255, 90)
 
 # Зоны для кликов в самой игре (Кнопки действий)
 # Формат: pygame.Rect(X, Y, ШИРИНА, ВЫСОТА)
@@ -875,6 +881,65 @@ imgfile_malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png
 image_malex = Image(0, 0, anim_malex_static[0], animations=[anim_malex_static, [imgfile_malex_fall, imgfile_malex_fall], anim_malex_thinks, [imgfile_malex_attack,imgfile_malex_attack]], animation_speed=600, anim=True)
 image_bg = Image(0, 0, bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg)
 malex_menu = Image(0, 0, anim_malex_menu[0], animations=[anim_malex_menu], animation_speed=800, anim=True) #какая тут ошибка гайс
+
+# --- КЛИКАБЕЛЬНЫЙ СПРАЙТ В МЕНЮ ---
+# Здесь лежат параметры хитбокса клика по спрайту Малекс в главном меню.
+# Если надо подогнать область клика, меняем только эти 4 значения.
+malex_menu_click_hitbox_x = 590
+malex_menu_click_hitbox_y = 180
+malex_menu_click_hitbox_w = 210
+malex_menu_click_hitbox_h = 200
+
+# Сам прямоугольник для проверки клика по спрайту.
+# Его не правим напрямую, он строится из 4 чисел выше.
+malex_menu_click_hitbox = pygame.Rect(
+    malex_menu_click_hitbox_x,
+    malex_menu_click_hitbox_y,
+    malex_menu_click_hitbox_w,
+    malex_menu_click_hitbox_h,
+)
+
+# Сколько миллисекунд спрайт должен оставаться в состоянии клика, прежде чем вернуться к обычной анимации меню.
+malex_menu_click_duration_ms = 700
+
+# Если True, вокруг хитбокса будет рисоваться зелёная рамка для отладки.
+show_malex_menu_hitbox = False
+# Отладочная рамка для кнопки выхода. Можно удалить вместе с блоком отрисовки ниже, если она больше не нужна.
+show_exit_hitbox = False
+
+
+# Храним момент клика. Когда значение None, значит спрайт сейчас в обычном режиме.
+malex_menu_click_started_at = None
+
+
+def start_malex_menu_click():
+    """Переключает спрайт меню в статичный клик-спрайт и запускает таймер возврата."""
+    global malex_menu_click_started_at
+
+    # Останавливаем анимацию, подменяем картинку на спрайт клика и фиксируем время.
+    malex_menu.anim = False
+    malex_menu.img = malex_click
+    malex_menu_click_started_at = pygame.time.get_ticks()
+
+
+def update_malex_menu_click_state():
+    """Каждый кадр проверяет, не пора ли вернуть обычный анимированный спрайт."""
+    global malex_menu_click_started_at
+
+    # Если клика не было, ничего делать не нужно.
+    if malex_menu_click_started_at is None:
+        return
+
+    now = pygame.time.get_ticks()
+
+    # Когда таймер истёк, возвращаем исходную анимацию меню.
+    if now - malex_menu_click_started_at >= malex_menu_click_duration_ms:
+        malex_menu.anim = True
+        malex_menu.animation = 0
+        malex_menu.current_frame = 0
+        malex_menu.last_update = now
+        malex_menu.img = anim_malex_menu[0]
+        malex_menu_click_started_at = None
 
 
 image_ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
@@ -1283,7 +1348,14 @@ while True:
             
             # Клик в Главном Меню
             if current_scene == "menu":
-                if click_zone.collidepoint(mouse_pos):
+                # Сначала проверяем клик по спрайту Malex.
+                # Если он попал в хитбокс, запускаем временную реакцию спрайта.
+                if exit_click_zone.collidepoint(mouse_pos):
+                    pygame.quit()
+                    sus.exit()
+                elif malex_menu_click_hitbox.collidepoint(mouse_pos):
+                    start_malex_menu_click()
+                elif click_zone.collidepoint(mouse_pos):
                     res = novel.handle("load") # Получаем описание локации при входе в игру
                     display_text.set_text(res["text"])
                     special_flags = novel.get_player_location().special_flags
@@ -1321,9 +1393,37 @@ while True:
 
     # --- ОТРИСОВКА ЭКРАНОВ ---
     if current_scene == "menu":
+        # Перед отрисовкой проверяем, не закончился ли эффект клика по Malex.
+        update_malex_menu_click_state()
+
         screen.blit(imgfile_bg_menu, (0, 0))
         screen.blit(imgfile_gamename, (0, 0))
         malex_menu.draw(screen)
+
+        if exit_click_zone.collidepoint(mouse_pos):
+            screen.blit(imgfile_exit1, (exit_button_x, exit_button_y))
+        else:
+            screen.blit(imgfile_exit0, (exit_button_x, exit_button_y))
+
+        # Отладочная зелёная рамка помогает увидеть реальную область клика.
+        # Если она больше не нужна, просто поставь show_malex_menu_hitbox = False.
+        if show_malex_menu_hitbox:
+            pygame.draw.rect(
+                screen,
+                (0, 255, 0),
+                malex_menu_click_hitbox,
+                2,
+            )
+
+        # Отладочная зелёная рамка для кнопки выхода.
+        if show_exit_hitbox:
+            pygame.draw.rect(
+                screen,
+                (0, 255, 0),
+                exit_click_zone,
+                2,
+            )
+
         if click_zone.collidepoint(mouse_pos):
             screen.blit(imgfile_play1, (button_x, button_y))
         else:
