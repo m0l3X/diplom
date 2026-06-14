@@ -102,9 +102,9 @@ class RPGNovel():
                                 response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
                                 return response
                             
-                        player.location = current_room.exits[payload]
                         response["text"] = player.current_world.get_location(player.location).description #f"Ты перешел в {player.location}"
                         player.visited_locations.add(player.location)
+                        player.location = current_room.exits[payload]
                         #except:
                         #    response["text"] = "Ошибка в передвижении, может такого выхода в комнате нет?"
                     else:
@@ -124,13 +124,13 @@ class RPGNovel():
                     
                 case "inv":
                     if not player.inventory:
-                        response["text"] = "Инвентарь пуст."
+                        response["text"] = ""
                     else:
                         if player.has_all_papers():
                             player.getitembyid("galo").desc = 'Вспомни. Это ТО, что тебе нужно.'
-                        text = ""
-                        for item in player.inventory:
-                            text += f'{item.name} — {item.desc} - {getattr(item, "heal_power", 0)} ХП восттан. - {getattr(item, "damage", 0)} урона \n'
+                        #text = ""
+                        text = ";".join([item.name for item in player.inventory])
+                        
                         response["text"] = text
                 case "inv_internal":
                     if not player.inventory:
@@ -139,7 +139,7 @@ class RPGNovel():
                         if player.has_all_papers():
                             player.getitembyid("galo").desc = 'Вспомни. Это ТО, что тебе нужно.'
                         #text = ""
-                        text = ";".join([item.name for item in player.inventory])
+                        text = ";".join([item.id for item in player.inventory])
                         
                         response["text"] = text
 
@@ -161,12 +161,13 @@ class RPGNovel():
                     response["text"] = text
 
                 case "checkroom":
-                    if current_room.items != []:
-                        for i, item in enumerate(current_room.items, 1):
-                            response["text"] = f"{i}. {item.name}"
-                case "checkroom_internal":
                     if current_room.items:
                         response["text"] = ";".join([item.name for item in current_room.items])
+                    else:
+                        response["text"] = ""
+                case "checkroom_internal":
+                    if current_room.items:
+                        response["text"] = ";".join([item.id for item in current_room.items])
                     else:
                         response["text"] = ""
                         
@@ -273,7 +274,7 @@ class RPGNovel():
                         if not items:
                             response["text"] = ""
                         else:
-                            response["text"] = ";".join([item.name for item in items])
+                            response["text"] = ";".join([item.id for item in items])
                 case "get_weapons":
                     weapons = [item for item in player.inventory if isinstance(item, Weapon)]
                     if not weapons:

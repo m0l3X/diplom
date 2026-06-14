@@ -18,7 +18,127 @@ btn = pygame.image.load('assets/images/UI/buttonmini.png').convert_alpha()
 btn_next_img =  pygame.image.load('assets/images/UI/next.png').convert_alpha()
 btn_prev_img = pygame.image.load('assets/images/UI/prev.png').convert_alpha()
 class Button:
-    def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button")):
+    def __init__(self, x, y, w=None, h=None, text="", img=None, 
+                 func=lambda: print("hi i'm button"), 
+                 on_hover=lambda x: print(f"hey that's my shoulder"), 
+                 off_hover=lambda x: print(f"damn")):
+        
+        if img != "no":
+            self.orig_img = img if img else btn 
+            self.img = self.orig_img
+        else:
+            self.orig_img = None
+            self.img = None
+        
+        width = w if w else self.img.get_width()
+        height = h if h else self.img.get_height()
+        self.rect = pygame.Rect(x, y, width, height)
+        
+        self.__text = text
+
+        self.text_manager = PygameTextPrinter(speed_ms=50)
+        self.text_manager.set_text(text)
+        
+        self.last_text = ""
+        self.text_surf = ui_font.render(self.__text, True, (0, 0, 0))
+        
+        self.last_update = 0
+        self.speed = 333
+        
+        self.enabled = True
+        self.func = func
+        self.on_hover = on_hover
+        self.off_hover = off_hover
+        self.hovered = False
+        self.prevpos = (0,0)
+        self.imgpos = (x, y)
+        self.overlay_img = None  # Для эффекта при наведении (можно задать картинку или цветовую заливку)
+        # --- КЭШИРОВАНИЕ ПОВОРОТОВ (ОПТИМИЗАЦИЯ ПОКАЧИВАНИЯ) ---
+        self.rotated_imgs = {}
+        if self.orig_img:
+            # Заранее генерируем повернутые картинки для углов -4, -2, 0, 2, 4 градуса
+            for r in range(-2, 3):
+                angle = r * 2
+                if angle == 0:
+                    self.rotated_imgs[angle] = self.orig_img
+                else:
+                    self.rotated_imgs[angle] = pygame.transform.rotate(self.orig_img, angle)
+
+        # --- ПЕРЕМЕННЫЕ ДЛЯ ОДНОПОТОЧНОГО TRANSLATE ---
+        self.is_translating = False
+        self.trans_start_x, self.trans_start_y = x, y
+        self.trans_target_x, self.trans_target_y = x, y
+        self.trans_duration = 0
+        self.trans_start_time = 0
+
+    def set_overlay_image(self, overlay_img, px,py):
+        """Устанавливает картинку для эффекта при наведении мыши"""
+        self.overlay_img = overlay_img
+        self.overlay_img_px = px
+        self.overlay_img_py = py # Отступы от границ кнопки для наложения эффекта
+
+    def smoothstep(self, a: float, b: float, t: float) -> float:
+        t = max(0.0, min(1.0, t))
+        t = t * t * (3.0 - 2.0 * t)
+        return a + t * (b - a)
+
+    def draw(self, surf):
+        if not self.enabled or self.img is None:
+            return  
+            
+        current_time = pygame.time.get_ticks()
+        
+        # 1. СИНХРОННЫЙ ОБРАБОТЧИК ДВИЖЕНИЯ (Вместо потока)
+        if self.is_translating:
+            elapsed = current_time - self.trans_start_time
+            if elapsed >= self.trans_duration:
+                self.rect.x, self.rect.y = self.trans_target_x, self.trans_target_y
+                self.is_translating = False
+            else:
+                t = elapsed / self.trans_duration
+                self.rect.x = int(self.smoothstep(self.trans_start_x, self.trans_target_x, t))
+                self.rect.y = int(self.smoothstep(self.trans_start_y, self.trans_target_y, t))
+
+        # 2. ОПТИМИЗИРОВАННОЕ ПОКАЧИВАНИЕ (Брать из кэша, а не крутить на лету)
+        if current_time - self.last_update >= self.speed:
+            r = random.randint(-2, 2)
+            angle = r * 2
+            # Достаем готовую картинку из словаря (это мгновенно)
+            self.img = self.rotated_imgs.get(angle, self.orig_img)
+            self.last_update = current_time
+            
+        
+        img_w, img_h = self.img.get_width(), self.img.get_height()
+        self.imgpos = (
+            self.rect.x + (self.rect.width >> 1) - (img_w >> 1), 
+            self.rect.y + (self.rect.height >> 1) - (img_h >> 1)
+        )
+        self.prevpos = self.imgpos
+        
+        surf.blit(self.img, self.imgpos)
+        if self.overlay_img:
+            surf.blit(self.overlay_img, (self.imgpos[0] + self.overlay_img_px, self.imgpos[1] + self.overlay_img_py))
+        
+        surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
+
+    def translate(self, newx, newy, time=500):
+        if newx == self.rect.x and newy == self.rect.y:
+            return
+            
+        if time <= 0:
+            self.rect.x, self.rect.y = newx, newy
+            self.is_translating = False
+            return
+            
+        self.trans_start_x, self.trans_start_y = self.rect.x, self.rect.y
+        self.trans_target_x, self.trans_target_y = newx, newy
+        self.trans_duration = time
+        self.trans_start_time = pygame.time.get_ticks()
+        self.is_translating = True
+    def img_translate(self,new,newy,time=500):
+        pass
+class Button_old:
+    def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button"), on_hover=lambda x: print(f"hey that's my shoulder"), off_hover=lambda x: print(f"damn")):
         # Если img не передан, используем дефолтный (предполагается, что дефолтный btn загружен глобально)
         if img != "no":
             self.orig_img = img if img else btn 
@@ -48,6 +168,11 @@ class Button:
         
         self.enabled = True
         self.func = func
+        self.on_hover = on_hover
+        self.off_hover = off_hover
+        self.hovered = False
+        self.prevpos = (0,0)
+        self.imgpos = (x, y)
 
     def draw(self, surf):
         if not self.enabled or self.img is None:
@@ -62,11 +187,13 @@ class Button:
             self.last_update = current_time
             
         # Центрирование картинки кнопки относительно её rect
+        #if self.imgpos != self.prevpos:
         img_w, img_h = self.img.get_width(), self.img.get_height()
-        pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
-               self.rect.y + self.rect.height // 2 - img_h // 2)
+        self.imgpos = (self.rect.x + (self.rect.width >> 1) - (img_w >> 1), 
+            self.rect.y + (self.rect.height >> 1) - (img_h >> 1)) # this is bitwise shift nigga
+        self.prevpos = self.imgpos
         
-        surf.blit(self.img, pos)
+        surf.blit(self.img, self.imgpos)
         
         ## Обновляем состояние печатного текста
         #self.text_manager.update()
@@ -78,6 +205,31 @@ class Button:
             
         # Отрисовка текста по центру кнопки (или с фиксированным отступом)
         surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
+    def translate(self, newx, newy, time=500):
+        if newx == self.rect.x and newy == self.rect.y:
+            return
+        def lerp(a: float, b: float, t: float) -> float: # larping in python 😭
+            return (1 - t) * a + t * b
+        def smoothstep(a: float, b: float, t: float) -> float:
+            # Clamp t between 0 and 1
+            t = max(0.0, min(1.0, t))
+            # Apply S-curve formula: 3t^2 - 2t^3
+            t = t * t * (3.0 - 2.0 * t)
+            return a + t * (b - a)
+        def animate():
+            start_time = pygame.time.get_ticks()
+            start_x, start_y = self.rect.x, self.rect.y
+            while True:
+                now = pygame.time.get_ticks()
+                elapsed = now - start_time
+                if elapsed >= time:
+                    self.rect.x, self.rect.y = newx, newy
+                    break
+                else:
+                    t = elapsed / time
+                    self.rect.x = int(smoothstep(start_x, (newx), t))
+                    self.rect.y = int(smoothstep(start_y , (newy), t))
+        threading.Thread(target=animate, daemon=True).start()
 
 class SelectableButton:
     def __init__(self, x, y, w=None, h=None, button_array=None,next_img=btn_next_img,prev_img=btn_prev_img):
@@ -118,7 +270,7 @@ class SelectableButton:
         self.prev.draw(surf) if self.item != 0 else ""
 
         
-class Image:
+class Image_old:
     def __init__(self, x, y, img, animations=None, animation_speed=500,anim=False):
         self.img = img
         self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
@@ -192,7 +344,124 @@ class Image:
                     self.rect.y = original_pos[1] + offset_y
         threading.Thread(target=animate, daemon=True).start()
 
+class Image:
+    def __init__(self, x, y, img, animations=None, animation_speed=500, anim=False):
+        self.img = img
+        self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
+        self.animations = animations
+        self.animation = 0
+        self.animation_speed = animation_speed
+        self.anim = anim
+        self.current_frame = 0
+        self.last_update = 0
+        self.enabled = True
+
+        # --- НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ТРЕНДИНГА АНИМАЦИЙ В ОДНОМ ПОТОКЕ ---
+        # Переменные движения (translate)
+        self.is_translating = False
+        self.trans_start_x, self.trans_start_y = x, y
+        self.trans_target_x, self.trans_target_y = x, y
+        self.trans_duration = 0
+        self.trans_start_time = 0
+
+        # Переменные тряски (shake)
+        self.is_shaking = False
+        self.shake_origin_x, self.shake_origin_y = x, y
+        self.shake_intensity = 0
+        self.shake_duration = 0
+        self.shake_start_time = 0
+
+        # Переменные временной анимации (short_animation)
+        self.has_short_anim = False
+        self.original_animation_idx = 0
+        self.short_anim_duration = 0
+        self.short_anim_start_time = 0
+
+    def smoothstep(self, a: float, b: float, t: float) -> float:
+        t = max(0.0, min(1.0, t))
+        t = t * t * (3.0 - 2.0 * t)
+        return a + t * (b - a)
+
+    def draw(self, surf):
+        if not self.enabled or self.img is None:
+            return
+
+        now = pygame.time.get_ticks()
+
+        # 1. СИНХРОННЫЙ ОБРАБОТЧИК TRANSLATE (Плавное перемещение)
+        if self.is_translating:
+            elapsed = now - self.trans_start_time
+            if elapsed >= self.trans_duration:
+                self.rect.x, self.rect.y = self.trans_target_x, self.trans_target_y
+                self.is_translating = False
+            else:
+                t = elapsed / self.trans_duration
+                self.rect.x = int(self.smoothstep(self.trans_start_x, self.trans_target_x, t))
+                self.rect.y = int(self.smoothstep(self.trans_start_y, self.trans_target_y, t))
+
+        # 2. СИНХРОННЫЙ ОБРАБОТЧИК SHAKE (Тряска экрана/персонажа)
+        # Инициализируем смещения для текущего кадра
+        offset_x, offset_y = 0, 0
+        if self.is_shaking:
+            elapsed = now - self.shake_start_time
+            if elapsed >= self.shake_duration:
+                self.is_shaking = False
+            else:
+                offset_x = random.randint(-self.shake_intensity, self.shake_intensity)
+                offset_y = random.randint(-self.shake_intensity, self.shake_intensity)
+
+        # 3. СИНХРОННЫЙ ОБРАБОТЧИК SHORT_ANIMATION (Временная смена анимации)
+        if self.has_short_anim:
+            elapsed = now - self.short_anim_start_time
+            if elapsed >= self.short_anim_duration:
+                self.animation = self.original_animation_idx
+                self.has_short_anim = False
+
+        # --- ОТРИСОВКА ---
+        # Вычисляем финальную позицию рендера с учетом возможной тряски
+        render_x = self.rect.x + offset_x
+        render_y = self.rect.y + offset_y
+
+        if not self.anim:
+            surf.blit(self.img, (render_x, render_y))
+        else:
+            self.animation_frames = self.animations[self.animation]
+            if now - self.last_update > self.animation_speed:
+                self.current_frame = (self.current_frame + 1) % len(self.animation_frames)
+                self.last_update = now
+            surf.blit(self.animation_frames[self.current_frame], (render_x, render_y))
+            
+    def translate(self, newx, newy, time=500):
+        if newx == self.rect.x and newy == self.rect.y:
+            return
+        # Передаем управление в draw(). Если время 0 — перемещаем мгновенно
+        if time <= 0:
+            self.rect.x, self.rect.y = newx, newy
+            self.is_translating = False
+            return
+            
+        self.trans_start_x, self.trans_start_y = self.rect.x, self.rect.y
+        self.trans_target_x, self.trans_target_y = newx, newy
+        self.trans_duration = time
+        self.trans_start_time = pygame.time.get_ticks()
+        self.is_translating = True
+
+    def short_animation(self, anim_idx, duration=500):
+        # Если короткая анимация уже идет, не перезапускаем её хаотично
+        if not self.has_short_anim:
+            self.original_animation_idx = self.animation
         
+        self.animation = anim_idx
+        self.short_anim_duration = duration
+        self.short_anim_start_time = pygame.time.get_ticks()
+        self.has_short_anim = True
+
+    def shake(self, intensity=5, duration=500):
+        # Запоминаем базовую точку, относительно которой будем трясти
+        self.shake_intensity = intensity
+        self.shake_duration = duration
+        self.shake_start_time = pygame.time.get_ticks()
+        self.is_shaking = True
 
 class Menu:
     def __init__(self, buttons):
@@ -236,8 +505,14 @@ class Menu:
         for btn in self.panels:
             if isinstance(btn, TextInputField):
                 btn.handle_event(event)
-            if isinstance(btn, ScrollList):
-                btn.handle_event(event)
+            if isinstance(btn, Button) and event.type == pygame.MOUSEMOTION:
+                if btn.enabled and btn.rect.collidepoint(event.pos):
+                    if not btn.hovered:
+                        btn.on_hover(btn)
+                        btn.hovered = True
+                elif btn.hovered:
+                    btn.off_hover(btn)
+                    btn.hovered = False
                 
 
 class TextInputField:
@@ -614,7 +889,7 @@ def action_start_combat(enemy_idx=1):
         cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/{enemy_id}.png').convert_alpha()
     except:
         cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/missingno.png').convert_alpha()
-inv_imgfile = pygame.image.load('assets/images/UI/inventory.png').convert_alpha()
+imgfile_inv = pygame.image.load('assets/images/UI/inventory.png').convert_alpha()
 
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
 btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : action_move("юг"), img="no" )
@@ -648,7 +923,10 @@ battle = Menu([btn_hit, input_field, btn_item, btn_mercy, btn_array])
 btn_close_items = Button(700, 20, text="X", func=lambda: close_items_menu())
 # Создаем окно скролла шириной 500px и высотой 300px в координатах (60, 40)
 inv_scroll_list = ScrollList(x=60, y=40, width=150, height=100, item_height=50)
-items_menu = Menu([inv_imgfile,btn_close_items,inv_scroll_list]) 
+
+imgfile_item = pygame.image.load('assets/images/UI/item.png').convert_alpha()
+
+items_menu = Menu([btn_close_items,inv_scroll_list]) 
 items_menu.enabled = False
 
 ingame_map = VisualMap(x=200, y=150, w=600, h=400)
@@ -704,7 +982,7 @@ def action_use_item(item_index, item_name):
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
     close_items_menu()
 
-def rebuild_items_menu(raw_data, on_click_callback):
+def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True):
     """
     Принимает строку с предметами через ';' и функцию, 
     которая должна выполниться при клике на элемент.
@@ -712,88 +990,42 @@ def rebuild_items_menu(raw_data, on_click_callback):
     image_malex.animation = 2
     if not raw_data: 
         items_menu.panels = [
-            Image(0, 0, inv_imgfile), 
-            Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
-            btn_close_items
+            Image(0, 0, imgfile_inv) if inv_img else Image(1000, 0, imgfile_inv),
+            btn_close_items,
+            Button(60, 40, text="Пусто", func=lambda: close_items_menu())
         ]
         return
 
     items_list = raw_data.split(";")
-    new_panels = [Image(0, 0, inv_imgfile),btn_close_items]
-    
+    new_panels = [Image(0, 0, imgfile_inv),btn_close_items] if inv_img else [btn_close_items]
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
-        btn = Button(
-            60, 40 + i * 50, 
-            text=item_name, 
-            func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name)
-        )
+        if i == keep_idx:
+            btn = Button(
+                100, 70 + i * 50, 
+                200, 70,
+                func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
+                img=imgfile_item
+            )
+        else:
+            btn = Button(
+                -20, 70 + i * 50, 
+                200, 70,
+                func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
+                on_hover=lambda btn: btn.translate(100, btn.rect.y, time=200), 
+                off_hover=lambda btn: btn.translate(-20, btn.rect.y, time=200),
+                img=imgfile_item
+            )
+        try:
+            file = pygame.transform.scale(pygame.image.load(f'assets/images/items/{item_name}.png'),(70,70))
+        except:
+            file = pygame.image.load(f'assets/images/blank.png')
+            print(f"not found {item_name}")
+        btn.set_overlay_image(file,30,30)
         new_panels.append(btn)
         
     items_menu.panels = new_panels
 
-def rebuild_items_menu_new(raw_data, on_click_callback, active_idx=None):
-    """Модифицированная функция с поддержкой ScrollList"""
-    image_malex.animation = 2
-    
-    if not raw_data: 
-        items_menu.panels = [
-            Image(0, 0, inv_imgfile), 
-            Button(60, 40, text="Пусто", func=lambda: close_items_menu()),
-            btn_close_items
-        ]
-        return
-
-    items_list = raw_data.split(";")
-    
-    # Генерируем "сырой" список всех кнопок-предметов
-    all_item_buttons = []
-    for i, item_name in enumerate(items_list):
-        btn = Button(
-            60, 40, # Изначальный Y не важен, ScrollList пересчитает его сам
-            text=item_name, 
-            func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name)
-        )
-        all_item_buttons.append(btn)
-    
-    # Скармливаем кнопки нашему скроллеру
-    inv_scroll_list.set_items(all_item_buttons)
-    
-    # Собираем финальные панели для отрисовки
-    update_menu_panels(active_idx, items_list)
-    inv_scroll_list.update_positions()
-
-
-def update_menu_panels(active_idx=None, items_list=None):
-    """
-    Отдельная мини-функция для обновления панелей. 
-    Её нужно вызывать при каждом скролле, чтобы обновлять интерфейс.
-    """
-    # Базовый фон и кнопка закрытия
-    new_panels = [Image(0, 0, inv_imgfile), btn_close_items]
-    
-    # Берем из скролл-листа ТОЛЬКО те кнопки, которые видны сейчас на экране
-    visible_buttons = inv_scroll_list.get_visible_panels()
-    new_panels.extend(visible_buttons)
-    
-    # Дорисовываем контекстные кнопки ("Использовать", "Выбросить"...) рядом с выбранным предметом
-    if active_idx is not None and items_list is not None:
-        # Нам нужно найти, видна ли сейчас кнопка активного предмета
-        for btn in visible_buttons:
-            # Проверяем по тексту (или можно добавить ID в Button)
-            if btn.text == items_list[active_idx]:
-                item_name = items_list[active_idx]
-                
-                # Кнопки действий привязываются к ТЕКУЩЕМУ Y элемента, который сдвинут скроллом!
-                drop_btns = [
-                    Button(220, btn.y, text="Осмотреть", func=lambda: action_inspect(active_idx, item_name)),
-                    Button(420, btn.y, text="Использовать", func=lambda: action_use_item(active_idx, item_name)),
-                    Button(620, btn.y, text="Выбросить", func=lambda: action_drop_item(active_idx, item_name))
-                ]
-                new_panels.extend(drop_btns)
-                break
-                
-    items_menu.panels = new_panels
 
 def close_items_menu(dummy=None):
     image_malex.translate(0, 0, time=500)
@@ -801,16 +1033,23 @@ def close_items_menu(dummy=None):
     image_malex.animation = 0
 
 def drop_buttons(item_idx, name):
-    open_player_inventory()
-    drop_btns = [Button(220, 40 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name)),
-                 Button(420, 40 + item_idx*50, text=f"Использовать", func=lambda: action_use_item(item_idx, name)),
-                 Button(620, 40 + item_idx*50, text=f"Выбросить", func=lambda: action_drop_item(item_idx, name))]
-    items_menu.panels.extend(drop_btns)
+    open_player_inventory(keep_idx=item_idx)
+    text = ui_font.render(name, True, (0, 0, 0))
+    des_y = 70 + item_idx*50
+    btn1 = Button(220, des_y, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name))
+    btn2 = Button(220, des_y, text=f"Использовать", func=lambda: action_use_item(item_idx, name))
+    btn3 = Button(220, des_y, text=f"Выбросить", func=lambda: action_drop_item(item_idx, name))
+
+    btn1.translate(320,des_y,200)
+    btn2.translate(520,des_y,200)
+    btn3.translate(720,des_y,200)
+    items_menu.panels.extend([btn1,btn2,btn3])
+    
 
 def battle_drop_buttons(item_idx, name):
-    battle_player_inventory()
-    btn = Button(280, 40 + item_idx*50, text=f"Использовать", func=lambda: battle_use_item(item_idx, name))
-    btn2 = Button(480, 40 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name))
+    battle_player_inventory(keep_idx=item_idx)
+    btn = Button(280, 70 + item_idx*50, text=f"Использовать", func=lambda: battle_use_item(item_idx, name))
+    btn2 = Button(480, 70 + item_idx*50, text=f"Осмотреть", func=lambda: action_inspect(item_idx, name))
     items_menu.panels.append(btn)
     items_menu.panels.append(btn2)
 
@@ -847,32 +1086,35 @@ def open_player_weapons():
 def open_mercy_buttons():
     reset_battle_panels()
     btn_spare = Button(
-            420, point+offset*3, 
+            220, point+offset*3,  #420
             text="Пощадить", 
             func=lambda : spare()
         )
     btn_run = Button(
-            620, point+offset*3, 
+            220, point+offset*3,  #620
             text="Сбежать", 
             func=lambda : run()
         )
+    btn_spare.translate(420,btn_spare.rect.y,200)
+    btn_run.translate(620,btn_run.rect.y,200)
     battle.panels.append(btn_spare)
     battle.panels.append(btn_run)
 
-def battle_player_inventory():
+
+def battle_player_inventory(keep_idx=None):
     reset_battle_panels()
     items_menu.enabled = True
     inv_data = novel.handle("inv_internal")["text"]
     print("ЧТО?? Уже и зелья собрался пить?? Ты настолько глупый что уже потерял столько ХП???? ХАХА, н-но вот смотри твой инвентарь, используй что хочешь..") # why are you so tsundere
     # Строим меню инвентаря, при клике сработает использование/осмотр
-    rebuild_items_menu(inv_data, battle_drop_buttons)
+    rebuild_items_menu(inv_data, battle_drop_buttons,keep_idx,inv_img=False)
 
-def open_player_inventory():
+def open_player_inventory(keep_idx=None):
     items_menu.enabled = True
     inv_data = novel.handle("inv_internal")["text"]
     print("ХМПФ!! ты хочешь чтобы я открыла для тебя инвентарь??? ну уж нет!! не надейся даже! н-но, если что он открылся.. н-наверное....") # why are you so tsundere
     # Строим меню инвентаря, при клике сработает использование/осмотр
-    rebuild_items_menu(inv_data, drop_buttons)
+    rebuild_items_menu(inv_data, drop_buttons, keep_idx,inv_img=False)
 
 #def toggle_items(payload=novel.handle("checkroom_internal")["text"]):
 #    items_menu.enabled = not items_menu.enabled
@@ -977,7 +1219,7 @@ def fight(item_idx=None, name=None, text=""):
     global weapon_img
     try:
         if item_idx != None:
-            file = pygame.image.load(f'assets/images/weapons/{novel.handle("get_weapon_id",item_idx)["text"]}.png')
+            file = pygame.image.load(f'assets/images/items/{novel.handle("get_weapon_id",item_idx)["text"]}.png')
             weapon_img = Image(300-file.get_width()//2, 270-file.get_height()//2, file) # факэсс я не могу придумать как это реализовать нормально пусть пока так
         else:
             weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
@@ -1061,7 +1303,8 @@ while True:
                     elif novel.state == "COMBAT":
                         battle.click(mouse_pos)
         # ОБРАБОТКА КЛАВИАТУРЫ (для текстового ввода в бою)
-        
+        if items_menu.enabled:
+            items_menu.any_event(event)
         if novel.state == "COMBAT":
             battle.any_event(event)
             #if items_menu.enabled:  ### OBSOLETE: uncomment this shit if you are using new rebuild items menu (with scroll things)
@@ -1126,8 +1369,8 @@ while True:
         
         # --- ИНТЕРФЕЙС И КНОПКИ ДЕЙСТВИЙ ---
         # Выводим ХП игрока сверху
-        #hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
-        #screen.blit(hp_text, (30, 145))
+        hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
+        screen.blit(hp_text, (30, 145))
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
