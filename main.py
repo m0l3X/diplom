@@ -862,12 +862,12 @@ malex_click = pygame.image.load('assets/images/UI/malexclick.png').convert_alpha
 #exit_button_x, exit_button_y = 0, 0
 #exit_click_zone = pygame.Rect()
 def start_game_callback():
-    global current_scene
     res = novel.handle("load") # Получаем описание локации при входе в игру
     display_text.set_text(res["text"])
     special_flags = novel.get_player_location().special_flags
     image_malex.translate(special_flags["MX"], special_flags["MY"], time=0) if "MX" in special_flags.keys()  else ""
     image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=0) if "BGX" in special_flags.keys() else ""
+    global current_scene
     current_scene = "intro"
 btn_play = Button(65, 290, 255, 90, img=imgfile_play0, func=start_game_callback,
                   on_hover=lambda b: setattr(b, 'img', imgfile_play1),
