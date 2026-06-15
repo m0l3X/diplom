@@ -243,7 +243,7 @@ class SelectableButton:
         self.func = lambda : self.click()
         self.array = button_array
         self.next = Button(x+100,y,60,55,img=next_img,func= lambda : self.fnext())
-        self.prev = Button(x-100,y,50,55,img=prev_img,func= lambda : self.fprev())
+        self.prev = Button(x-60 ,y,60,55,img=prev_img,func= lambda : self.fprev())
     def click(self,mouse_pos):
         btn_cur = self.array[self.item]
         if btn_cur.rect.collidepoint(mouse_pos):
@@ -265,10 +265,12 @@ class SelectableButton:
         btn_cur.draw(surf)
         self.next.rect.x = self.rect.x+200
         self.next.rect.y = self.rect.y 
-        self.next.draw(surf) if self.item != len(self.array)-1 else ""
-        self.prev.rect.x = self.rect.x-200
+        self.next.enabled = True if self.item != len(self.array)-1 else False
+        self.next.draw(surf) 
+        self.prev.rect.x = self.rect.x-60
         self.prev.rect.y = self.rect.y
-        self.prev.draw(surf) if self.item != 0 else ""
+        self.prev.enabled = True if self.item != 0 else False
+        self.prev.draw(surf) 
 
         
 class Image_old:
