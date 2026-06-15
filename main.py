@@ -823,8 +823,47 @@ class ScrollList:
                 visible.append(item)
         return visible
 
+class AssetManager:
+    def __init__(self, images_path='assets/images/',blank_path='assets/images/enemies/missingno.png'):
+        self.images_path = images_path
+        # Сразу загружаем дефолтную заглушку, чтобы не делать этого в try/except
+        self.blank_img = pygame.image.load(blank_path)
+        # Наш оперативный кэш: { "id_предмета": Surface }
+        self.__cache = {}
+        self.__enemies_cache = {}
+
+    def get_image(self, path, item_name: str) -> pygame.Surface:
+        # Если предмет уже есть в кэше — возвращаем моментально
+        if path not in self.__cache:
+            self.__cache[path] = {}
+        if item_name in self.__cache[path]:
+            return self.__cache[path][item_name]
+
+        # Если предмета нет, загружаем ОДИН РАЗ с диска
+        full_path = os.path.join(self.images_path, path, f"{item_name}.png")
+        
+        if os.path.exists(full_path):
+            try:
+                img = pygame.image.load(full_path).convert_alpha()
+                self.__cache[path][item_name] = img
+                return img
+            except Exception as e:
+                print(f"[AssetManager] Ошибка чтения файла {item_name}: {e}")
+        else:
+            print(f"[AssetManager] Файл не найден: {full_path}. Используется заглушка.")
+
+        # Если файла нет или он сломан — кэшируем заглушку, чтобы больше не долбиться в диск
+        self.__cache[path][item_name] = self.blank_img
+        return self.blank_img
+    def get_enemy_image(self,enemy_name):
+        if enemy_name in self.__enemies_cache:
+            return self.__enemies_cache[enemy_name]
+        
+
+
 novel = RPGNovel("Malex") 
 
+assets = AssetManager()
 
 display_text = PygameTextPrinter(speed_ms=25)
 display_text.set_text("missingno")
@@ -931,10 +970,8 @@ def action_start_combat(enemy_idx=1):
     display_text.set_text(res["text"])
     global cur_enemy_imgfile
     enemy_id = res["extra_data"]["enemy"].id if "extra_data" in res.keys() and "enemy" in res["extra_data"].keys() else "missingno"
-    try:
-        cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/{enemy_id}.png').convert_alpha()
-    except:
-        cur_enemy_imgfile = pygame.image.load(f'assets/images/sprites/enemies/missingno.png').convert_alpha()
+    cur_enemy_imgfile = assets.get_image("enemies",enemy_id)
+    
 imgfile_inv = pygame.image.load('assets/images/UI/inventory.png').convert_alpha()
 
 btn_n = Button(865, 257, 60, 55, text="Север", func=lambda : action_move("север"), img="no" ) #display_text.set_text(novel.handle("move","север")["text"])
@@ -1062,11 +1099,7 @@ def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True):
                 off_hover=lambda btn: btn.translate(-20, btn.rect.y, time=200),
                 img=imgfile_item
             )
-        try:
-            file = pygame.transform.scale(pygame.image.load(f'assets/images/items/{item_name}.png'),(70,70))
-        except:
-            file = pygame.image.load(f'assets/images/blank.png')
-            print(f"not found {item_name}")
+        file = pygame.transform.scale(assets.get_image("items",item_name),(70,70))
         btn.set_overlay_image(file,30,30)
         new_panels.append(btn)
         

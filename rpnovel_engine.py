@@ -957,6 +957,7 @@ if __name__ == "__main__":
                     print(f"Предмет '{item_name}' добавлен в локацию '{location.name}'.")
                 else:
                     print("Локация не найдена.")
+            
             elif command == "drop":
                 item_name = input("ID предмета для выбрасывания: ")
                 item_to_remove = None
