@@ -109,6 +109,12 @@ class RPGNovel():
                         #    response["text"] = "Ошибка в передвижении, может такого выхода в комнате нет?"
                     else:
                         response["text"] = "Туда нельзя пройти!"
+
+                        if "uicross_shatter" in current_room.special_flags:
+                            response["extra_data"] = {"uicross_shatter":current_room.special_flags["uicross_shatter"]}
+                            if current_room.special_flags["uicross_shatter"] == 5:
+                                response["text"] = "..?????"
+                            current_room.special_flags["uicross_shatter"] +=1
                 case "exit":
                     print("Пока!")
                     raise SystemExit
