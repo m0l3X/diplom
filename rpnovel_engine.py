@@ -102,8 +102,8 @@ class RPGNovel():
                                 response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
                                 return response
                             
-                        player.visited_locations.add(player.location)
                         player.location = current_room.exits[payload]
+                        player.visited_locations.add(player.location)
                         response["text"] = player.current_world.get_location(player.location).description #f"Ты перешел в {player.location}"
                         #except:
                         #    response["text"] = "Ошибка в передвижении, может такого выхода в комнате нет?"

@@ -1333,9 +1333,7 @@ while True:
                         if btn_spec.enabled and btn_spec.rect.collidepoint(mouse_pos):
                             btn_spec.func()
 
-                    # Если движок переключился в режим боя
-                    elif novel.state == "COMBAT":
-                        battle.click(mouse_pos)
+                    
         # ОБРАБОТКА КЛАВИАТУРЫ (для текстового ввода в бою)
         if items_menu.enabled:
             items_menu.any_event(event)
