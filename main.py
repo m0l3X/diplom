@@ -518,6 +518,10 @@ class Menu:
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if btn.enabled and btn.rect.collidepoint(event.pos):
                         btn.func()
+            if isinstance(btn, SelectableButton):
+                # Проверяем активность кнопки ДО проверки коллизии
+                if btn.enabled and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    btn.click(mouse_pos)
                 
 
 class TextInputField:
