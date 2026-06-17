@@ -117,12 +117,26 @@ start_time = 0
 
 def uicross_shatter():
     def animate():
+        btn_n.enabled = False
+        btn_s.enabled = False
+        btn_w.enabled = False
+        btn_e.enabled = False
         image_ui_cross.shake(5,5300)
         image_ui_cross.translate(-50,-100,300)
         pygame.time.wait(300)
         image_ui_cross.translate(-300,1000,1000)
         pygame.time.wait(1000)
         image_malex.translate(1000,0,3000)
+        pygame.time.wait(3000)
+        res = novel.handle("tp","intro19")
+        display_text.set_text(res["text"])
+        btn_n.enabled = True
+        btn_s.enabled = True
+        btn_w.enabled = True
+        btn_e.enabled = True
+        image_ui_cross.translate(0,0,0)
+        image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
+
     threading.Thread(target=animate,daemon=True).start()
 
 ######## TODO: это очень захардкоденая хрень сейчас. что я бы сделал в будущем, сделал бы свой язык составления анимаций по кейфреймам, чтобы потом хранить их в файле
@@ -424,7 +438,7 @@ def fight(item_idx=None, name=None, text=""):
     global weapon_img
     try:
         if item_idx != None:
-            file = pygame.image.load(f'assets/images/items/{novel.handle("get_weapon_id",item_idx)["text"]}.png')
+            file = assets.get_image("items",novel.handle("get_weapon_id",item_idx)["text"])
             weapon_img = Image(300-file.get_width()//2, 270-file.get_height()//2, file) # факэсс я не могу придумать как это реализовать нормально пусть пока так
         else:
             weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))

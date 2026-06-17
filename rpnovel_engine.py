@@ -101,7 +101,11 @@ class RPGNovel():
                             if wishroom.special_flags["locked"] not in [i.id for i in player.inventory]:
                                 response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
                                 return response
-                            
+                        if "changetheworld" in wishroom.special_flags.keys():
+                            player.current_world = World.from_dict(open(f'assets/worlds/{wishroom.special_flags["changetheworld"]}.wld').read())
+                            player.location = "start"
+                            response["text"] = player.current_world.get_location(player.location).description
+                            return response
                         player.location = current_room.exits[payload]
                         player.visited_locations.add(player.location)
                         response["text"] = player.current_world.get_location(player.location).description #f"Ты перешел в {player.location}"
@@ -115,6 +119,14 @@ class RPGNovel():
                             if current_room.special_flags["uicross_shatter"] == 5:
                                 response["text"] = "..?????"
                             current_room.special_flags["uicross_shatter"] +=1
+                case "tp":
+                    try:
+                        wishroom = player.current_world.get_location(payload)
+                        player.location = payload
+                        response["text"] = wishroom.description
+                    except:
+                        response["text"] = f"Ошибка в телепортации к {payload}, может такйо комнаты нет?"
+
                 case "exit":
                     print("Пока!")
                     raise SystemExit
@@ -261,9 +273,11 @@ class RPGNovel():
                     enemy.give(player)
                     response["text"] += f"\n{enemy.name} дал тебе предмет!"
                 if "[run]" in enemy_reply:
+                    current_room.enemies.remove(enemy) # Убираем труп из комнаты
+                    player.inventory.extend(enemy.inventory)
+                    response["text"] += "\nВраг убежал...\nВЫ ПОБЕДИЛИ!"
                     self.state = "EXPLORING"
                     self.current_enemy = None
-                    response["text"] += "\nВраг убежал! Бой окончен."
                 response["extra_data"] = {"player_hp": player.gethp(), "enemy_hp": enemy.gethp()}
             match action:
                 case "drop":
