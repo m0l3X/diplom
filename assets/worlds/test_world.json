@@ -1,0 +1,37 @@
+{
+    "name": "Zero",
+    "locations": [
+        {
+            "id": "start",
+            "name": "Старт, типо",
+            "description": "йоу",
+            "exits": {
+                "spec": "ass1"
+            },
+            "items": [
+                "eyJpZCI6ICJnYWxvIiwgIm5hbWUiOiAiXHUwNDEzXHUwNDMwXHUwNDNiXHUwNDNlXHUwNDNmXHUwNDM1XHUwNDQwXHUwNDM4XHUwNDM0XHUwNDNlXHUwNDNiIiwgImRlc2MiOiAiXHUwNDFlXHUwNDNmXHUwNDM4XHUwNDQxXHUwNDMwXHUwNDNkXHUwNDM4XHUwNDM1IiwgImhlYWxfcG93ZXIiOiAiTm9uZSIsICJkYW1hZ2UiOiAiTm9uZSJ9",
+                "eyJpZCI6ICJuZXdfaXRlbSIsICJuYW1lIjogIlx1MDQxY1x1MDQzNVx1MDQ0Ny9cdTA0MTdcdTA0MzVcdTA0M2JcdTA0NGNcdTA0MzUiLCAiZGVzYyI6ICJcdTA0MWVcdTA0M2ZcdTA0MzhcdTA0NDFcdTA0MzBcdTA0M2RcdTA0MzhcdTA0MzUiLCAiaGVhbF9wb3dlciI6ICJOb25lIiwgImRhbWFnZSI6ICJOb25lIn0="
+            ],
+            "enemies": [
+                {
+                    "id": "parent",
+                    "name": "Гоблин",
+                    "hp": 60,
+                    "dmg": 12,
+                    "backstory": "Злой гоблин охраняет проход.",
+                    "inventory": ""
+                }
+            ],
+            "special_flags": "{\"trls\": {\"malex\": {\"X\": 500, \"Y\": 0}, \"bg\": {\"X\": 500, \"Y\": 0}}}"
+        },
+        {
+            "id": "ass1",
+            "name": "Новая зона",
+            "description": "Вы пришли сюда...",
+            "exits": {},
+            "items": [],
+            "enemies": [],
+            "special_flags": "{}"
+        }
+    ]
+}

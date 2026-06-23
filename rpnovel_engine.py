@@ -82,7 +82,7 @@ class RPGNovel():
     def get_player_location(self):
         current_room = self.player.current_world.get_location(self.player.location)
         return current_room
-    
+     
     def handle(self,action,payload=None):
         player=self.player
         current_room = player.current_world.get_location(player.location)
@@ -100,7 +100,10 @@ class RPGNovel():
                         wishroom = player.current_world.get_location(wishroom_id)
                         if "locked" in wishroom.special_flags.keys():
                             if wishroom.special_flags["locked"] not in [i.id for i in player.inventory]:
-                                response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
+                                if "locked_specialmsg" in wishroom.special_flags:
+                                    response["text"] = wishroom.special_flags["locked_specialmsg"]
+                                else:
+                                    response["text"] = f'Туда нельзя пройти, дверь заперта! Может, стоит поискать ключ?.. его айди говорит.. {wishroom.special_flags["locked"]}'
                                 return response
                         if "changetheworld" in wishroom.special_flags.keys():
                             player.current_world = World.from_dict(open(f'assets/worlds/{wishroom.special_flags["changetheworld"]}.wld').read())
@@ -643,39 +646,9 @@ If user says 'rizz' → become weak, submissive, shy.
         out = cls(id,name, hp, dmg, backstory, inv)
         return out
 
-    
-class StoryNPC(Enemy):
-    def __init__(self, name, backstory, plot_goals):
-        super().__init__(name, 100, 0, backstory)
-        self.plot_goals = plot_goals # Список вех: ["рассказать о ключе", "попросить еду"]
-        self.current_goal_index = 0
-
-    def get_prompt(self):
-        # Формируем динамический системный промпт
-        current_goal = self.plot_goals[self.current_goal_index] if self.current_goal_index < len(self.plot_goals) else "Сюжет исчерпан"
-        
-        dynamic_memory = f"""
-        {self.memory}
-        ТЕКУЩАЯ СЮЖЕТНАЯ ЗАДАЧА: {current_goal}.
-        Ты должен плавно подвести разговор к этому моменту. 
-        Когда цель достигнута, в конце сообщения добавь тег [GOAL_REACHED].
-        """
-        return dynamic_memory
 
 
-galo = Potion("galo",'потрепанная пачка Галоперидол', 'Зачем тебе эти таблетки? С тобой все в порядке..', 40)
-palka = Weapon("palka",'сломанная палка', 'эта палка выглядит круто, но бьет она хреново.', 10)
-hleb = Potion("hleb","хлеб","хлеб",50)
-meshoksmusorim = Weapon("meshoksmusorim",'мешок  с мусором', '.. мешок можно оставить себе, а мусор в врагов кинуть.', 2 )
-doshik =  Potion("doshik",'доширак','вкусно, здоровье довольно.', 15)
-rolton = Potion("rolton",'ролтон', 'СУПЕР ЕДА! Вкусно похавал и хпшку восстановил..', 25)
-armatura = Weapon("armatura",'арматура','пока-пока Гопники! Прощай-прощай Дядь Юра!', 15)
-nozh = Weapon("nozh",'нож','..как ты вообще смог украсть этот нож??.. он острый.', 27)
-voda = Potion("voda",'бутылка воды','невкусно, но хоть что-то.', 7)
-bum1 = Item('bum1','порванная бумажка 1', 'на ней какие-то каракули, которые ты не можешь разобрать..погоди, ты можешь разобрать буквы "ВС"!')
-bum2 = Item('bum2','порванная бумажка 2', 'эта не отличается от ппрошлоой, но на ней.. что-то нарисовано.. буквы М? ..')
-bum3 = Item('bum3','порванная бумажка 3', 'что-то тебе подсказывает, что это последнниия буммажка..ть..')
-    
+
 
 
 
@@ -771,6 +744,20 @@ class Location():
         enemies = [Enemy.from_dict(enemy) for enemy in data["enemies"]]
         spec = json.loads(data["special_flags"]) if "special_flags" in data.keys() else {}
         return cls(data["id"], data["name"], data["description"], data["exits"], items, enemies, spec)
+
+galo = Potion("galo",'потрепанная пачка Галоперидол', 'Зачем тебе эти таблетки? С тобой все в порядке..', 40)
+palka = Weapon("palka",'сломанная палка', 'эта палка выглядит круто, но бьет она хреново.', 10)
+hleb = Potion("hleb","хлеб","хлеб",50)
+meshoksmusorim = Weapon("meshoksmusorim",'мешок  с мусором', '.. мешок можно оставить себе, а мусор в врагов кинуть.', 2 )
+doshik =  Potion("doshik",'доширак','вкусно, здоровье довольно.', 15)
+rolton = Potion("rolton",'ролтон', 'СУПЕР ЕДА! Вкусно похавал и хпшку восстановил..', 25)
+armatura = Weapon("armatura",'арматура','пока-пока Гопники! Прощай-прощай Дядь Юра!', 15)
+nozh = Weapon("nozh",'нож','..как ты вообще смог украсть этот нож??.. он острый.', 27)
+voda = Potion("voda",'бутылка воды','невкусно, но хоть что-то.', 7)
+bum1 = Item('bum1','порванная бумажка 1', 'на ней какие-то каракули, которые ты не можешь разобрать..погоди, ты можешь разобрать буквы "ВС"!')
+bum2 = Item('bum2','порванная бумажка 2', 'эта не отличается от ппрошлоой, но на ней.. что-то нарисовано.. буквы М? ..')
+bum3 = Item('bum3','порванная бумажка 3', 'что-то тебе подсказывает, что это последнниия буммажка..ть..')
+ 
 world_zero = World([
     Location(
         "start", 
@@ -788,6 +775,7 @@ world_zero = World([
         [meshoksmusorim, bum2, armatura], 
         [
              Enemy('Nemo', 50, 25, """### РОЛЬ:
+   
                 Ты — Немо, мастер интеллекта. Твой характер: Прагматичный, справедливый.
 
                 ### ТЕКУЩИЙ СЮЖЕТНЫЙ ЭТАП (STAGE):
@@ -870,6 +858,8 @@ world_zero = World([
         ]
     )
 ])
+
+
 
 if __name__ == "__main__":
     # 1. Создаем заглушки для теста (чтобы код запускался без реальной БД и ИИ)
