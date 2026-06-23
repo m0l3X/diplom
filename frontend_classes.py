@@ -16,7 +16,7 @@ class Button:
     def __init__(self, x, y, w=None, h=None, text="", img=None, 
                  func=lambda: print("hi i'm button"), 
                  on_hover=lambda x: print(f"hey that's my shoulder"), 
-                 off_hover=lambda x: print(f"damn"), wobble=True):
+                 off_hover=lambda x: print(f"damn"), wobble=True, debug_draw_hbox=False):
         
         if img != "no":
             self.orig_img = img if img else btn 
@@ -27,6 +27,9 @@ class Button:
         
         width = w if w else self.img.get_width()
         height = h if h else self.img.get_height()
+
+        self.debug_draw_hbox = debug_draw_hbox
+
         self.rect = pygame.Rect(x, y, width, height)
         
         self.__text = text
@@ -116,6 +119,8 @@ class Button:
             surf.blit(self.overlay_img, (self.imgpos[0] + self.overlay_img_px, self.imgpos[1] + self.overlay_img_py))
         
         surf.blit(self.text_surf, (self.rect.x + 25, self.rect.y + 15))
+        if self.debug_draw_hbox == True:
+            pygame.draw.rect(surf, (255,0,0), self.rect)
 
     def translate(self, newx, newy, time=500):
         if newx == self.rect.x and newy == self.rect.y:
@@ -845,9 +850,9 @@ class AssetManager:
                 self.__cache[path][item_name] = img
                 return img
             except Exception as e:
-                print(f"[AssetManager] Ошибка чтения файла {item_name}: {e}")
+                print(f"[AssetManager] Error reading file {item_name}: {e}")
         else:
-            print(f"[AssetManager] Файл не найден: {full_path}. Используется заглушка.")
+            print(f"[AssetManager] Not found: {full_path}")
 
         # Если файла нет или он сломан — кэшируем заглушку, чтобы больше не долбиться в диск
         self.__cache[path][item_name] = self.blank_img

@@ -48,6 +48,8 @@ for location in novel.player.current_world.locations:
 imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon1.png').convert()
 imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha()
 
+imgfile_blank = pygame.image.load('assets/images/blank.png').convert()
+
 imgfile_play0 = pygame.image.load('assets/images/UI/Pplay.png') 
 imgfile_play1 = pygame.image.load('assets/images/UI/Pplay1.png')
 imgfile_exit0 = pygame.image.load('assets/images/UI/exit.png')
@@ -153,13 +155,32 @@ def uicross_shatter():
 #
 #
 #
+anim_table = {
+    "malex":image_malex,
+    "bg": image_bg
+}
 
-
-def action_move(direction):
+def execute_room_flags(direction):
     res = novel.handle("move", direction)
     special_flags = novel.get_player_location().special_flags
-    image_malex.translate(special_flags["MX"], special_flags["MY"], time=300) if "MX" in special_flags.keys()  else image_malex.translate(0, 0, time=300)
+    print(special_flags)
+    for flag in special_flags.keys():
+        match flag:
+            case "trls":
+                for thing in special_flags["trls"].keys():
+                    table = special_flags["trls"][thing]
+                    gamething = anim_table.get(thing, None)
+                    if gamething:
+                        gamething.translate(table.get("X",0),table.get("Y",0),table.get("T",0))
+                        gamething.animation = table.get("ANIM",0)
+                        
+    image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
+    return res
+
+def action_move(direction):
+    res = execute_room_flags(direction)
     display_text.set_text(res["text"])
+            
 
     if "uicross_shatter" in res["extra_data"]:
         image_ui_cross.shake(res["extra_data"]["uicross_shatter"]*2,200)
@@ -173,18 +194,14 @@ def action_start_combat(enemy_idx=1):
     global cur_enemy_imgfile
     enemy_id = res["extra_data"]["enemy"].id if "extra_data" in res.keys() and "enemy" in res["extra_data"].keys() else "missingno"
     cur_enemy_imgfile = assets.get_image("enemies",enemy_id)
+    close_items_menu()
 
 def action_special():
-    res = novel.handle("move", "spec")
+    
+    res = execute_room_flags("spec")
     display_text.set_text(res["text"])
-    special_flags = novel.get_player_location().special_flags
-    image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
-    if "MX" in special_flags.keys():
-        image_malex.translate(special_flags["MX"], special_flags["MY"], time=special_flags["MT"]) if "MT" in special_flags.keys()  else image_malex.translate(special_flags["MX"], special_flags["MY"], time=1000)
-        
-    image_malex.animation = special_flags["MANIM"] if "MANIM" in special_flags.keys() else 0
-    if "BGX" in special_flags.keys():
-        image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=special_flags["BGT"]) if "BGT" in special_flags.keys()  else image_bg.translate(special_flags["BGX"], special_flags["BGY"], time=1000)
+    
+
 
 # Действие 1: Подобрать предмет из комнаты
 def action_pick_up(item_index, item_name):
@@ -259,6 +276,29 @@ def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True):
         
     items_menu.panels = new_panels
 
+def draw_enemies_panels(raw_data, on_click_callback):
+    """
+    Always called AFTER rebuild_enemy_items()
+    """
+    if not raw_data: 
+        return
+    items_list = raw_data.split(";")
+    new_panels = []
+    for i, item_name in enumerate(items_list):
+        # Передаем в callback-функцию индекс предмета и его имя
+        btn = Button(
+            700, 150 + i * 50, 
+            100, 200,
+            func=lambda item_idx=i, name=item_name: on_click_callback(item_idx),
+            img=imgfile_blank,
+            debug_draw_hbox = True
+        )
+        file = pygame.transform.scale(assets.get_image("enemies",item_name),(500,500))
+        btn.set_overlay_image(file,-400,-200)
+        new_panels.append(btn)
+        
+    items_menu.panels.extend(new_panels)
+
 
 def close_items_menu(dummy=None):
     image_malex.translate(0, 0, time=500)
@@ -291,11 +331,12 @@ def battle_drop_buttons(item_idx, name):
 def open_room_items():
     items_menu.enabled = True
     room_data = novel.handle("checkroom_internal")["text"]
+    room_data2 = novel.handle("start_combat","hey")["text"]
     # Строим меню предметов комнаты, при клике сработает подбор
     image_malex.translate(100, 0, time=200)
     
     rebuild_items_menu(room_data, action_pick_up)
-
+    draw_enemies_panels(room_data2, action_start_combat)
 ###################### МОЛЕКС ТУТ БЛЯТЬ ФУНКЦИЯ АТАКИ
 
 def open_player_weapons():
@@ -480,7 +521,7 @@ btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : action_move(
 btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : action_move("запад"), img="no" )
 
 btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
-btn_attack = Button(500, 700, text="Атаковать", func=lambda : action_start_combat() )
+btn_attack = Button(500, 700, text="Атаковать", func=lambda : action_start_combat() ) ### Obsolete meat
 
 btn_save = Button(900, 20, text="Сохранить", func=lambda : display_text.set_text(novel.handle("save")["text"]) )
 
@@ -488,7 +529,7 @@ btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_
 
 btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'enabled', True))
 
-freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_attack, btn_inv, btn_save, btn_map, image_ui_cross])
+freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_inv, btn_save, btn_map, image_ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 point=200
@@ -619,11 +660,7 @@ while True:
         screen.fill((0, 0, 0))
         display_text.update()
         
-        # Рисуем фон локации
-        if novel.player.location not in bgs:
-            screen.blit(imgfile_bg, (0,0))
-        else:
-            screen.blit(bgs[novel.player.location], (0,0 ))
+        image_bg.draw(screen)
         
         # Рисуем Спрайты персонажей
         image_malex.draw(screen)

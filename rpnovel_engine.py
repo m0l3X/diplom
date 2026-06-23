@@ -82,6 +82,7 @@ class RPGNovel():
     def get_player_location(self):
         current_room = self.player.current_world.get_location(self.player.location)
         return current_room
+    
     def handle(self,action,payload=None):
         player=self.player
         current_room = player.current_world.get_location(player.location)
@@ -231,10 +232,10 @@ class RPGNovel():
                 case "start_combat":
                     # Payload — это индекс врага из списка в комнате
                     if isinstance(payload,str):
-                        response["text"] = ";".join([enemy.name for enemy in current_room.enemies])
-                        response["extra_data"] = {"enemies": [enemy.name for enemy in current_room.enemies]} if current_room.enemies else {}
+                        response["text"] = ";".join([enemy.id for enemy in current_room.enemies])
+                        response["extra_data"] = {"enemies": [enemy.id for enemy in current_room.enemies]} if current_room.enemies else {}
                         return response
-                    enemy_index = payload - 1
+                    enemy_index = payload
                     if current_room.enemies and 0 <= enemy_index < len(current_room.enemies):
                         self.current_enemy = current_room.enemies[enemy_index]
                         self.state = "COMBAT" # ПЕРЕКЛЮЧАЕМ СОСТОЯНИЕ!
@@ -257,8 +258,12 @@ class RPGNovel():
                 mercy = False
             def enemy_turn(message):
                 enemy_reply = enemy.send_message(message, self)
-                response["text"] += f"{enemy.name}: {enemy_reply}"
                 global mercy
+                if enemy_reply == "Fuck you":
+                    response["text"] += f"{enemy.name} слишком устал для боя... И походу у него нету интернета\nВраг пощадил вас!"
+                    mercy = True
+                    return
+                response["text"] += f"{enemy.name}: {enemy_reply}"
                 # Тут обрабатываешь теги [attack], [give] как у тебя было
                 if "[spare]" in enemy_reply:
                     response["text"] += "\nВраг пощадил вас!"
@@ -600,6 +605,9 @@ If user says 'rizz' → become weak, submissive, shy.
         
             if not response.ok:
                 return f"Server error: {response.status_code} - {response.text}"
+        except requests.exceptions.ConnectionError:
+            return "Fuck you"
+
         except Exception as e:
             return f"Request error: {str(e)}"
         
