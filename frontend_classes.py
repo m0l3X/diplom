@@ -529,9 +529,15 @@ class Menu:
                 
 
 class TextInputField:
-    def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, max_chars=500, on_submit=None):
+    def __init__(self, x, y, w, h, font, text_color=(0, 0, 0), img=None, active_image=None, max_chars=2000, on_submit=None):
         self.orig_img = img if img else btn 
         self.img = self.orig_img
+        self.orig_active_img = active_image if active_image else btn
+
+        #self.img = pygame.transform.scale(self.img, (w,h))
+        self.active_img = self.orig_active_img
+        self.active_img = pygame.transform.scale(self.active_img, (w,h))
+        
         self.last_update = 0
         self.speed = 333
         self.rect = pygame.Rect(x, y, w, h)
@@ -540,10 +546,11 @@ class TextInputField:
         self.max_chars = max_chars
         self.on_submit = on_submit  # Функция, которая вызовется при нажатии Enter
         
-        self.text = "Сказать..."              # Текущий введенный текст
+        self.text = ""              # Текущий введенный текст
         self.active = False         # Выбрано ли поле кликом мышки
         self.enabled = True         # Видимо/активно ли поле в текущей сцене
         
+        self.text_surf = self.font.render(self.text, True, self.text_color)
         # Для мигающего курсора
         self.cursor_visible = True
         self.last_cursor_toggle = pygame.time.get_ticks()
@@ -561,7 +568,7 @@ class TextInputField:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 self.active = True
-                self.text = "" if self.text == "Сказать..." else self.text
+                #self.text = "" if self.text == "Сказать..." else self.text
                 image_malex.animation = 2
             else:
                 self.active = False
@@ -584,52 +591,59 @@ class TextInputField:
                     # event.unicode содержит символ с учетом раскладки и Shift
                     if event.unicode.isprintable() and event.unicode != "":
                         self.text += event.unicode
+            self.text_surf = self.font.render(self.text, True, self.text_color)
+            text_width = self.text_surf.get_width()
+            max_visible_width = self.rect.width - 20
+            if text_width > max_visible_width:
+                self.active_img = pygame.transform.scale(self.active_img, (text_width+30,self.rect.height))
+            else:
+                self.active_img = self.orig_active_img
+
+
 
     def draw(self, surf):
         """Отрисовка поля. Вызывать в блоке отрисовки экрана"""
         if not self.enabled:
             return
         def cool_box(current_time):
-            if current_time - self.last_update >= self.speed:
-                r = random.randint(-2, 2)
-                self.img = pygame.transform.rotate(self.orig_img, r*2)
-                self.last_update = current_time
-                
-            # Центрирование картинки кнопки относительно её rect
-            img_w, img_h = self.img.get_width(), self.img.get_height()
-            pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
+            if not self.active:
+                if current_time - self.last_update >= self.speed:
+                    r = random.randint(-2, 2)
+                    self.img = pygame.transform.rotate(self.orig_img, r*2)
+                    self.last_update = current_time
+                    
+                # Центрирование картинки кнопки относительно её rect
+                img_w, img_h = self.img.get_width(), self.img.get_height()
+                pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
                 self.rect.y + self.rect.height // 2 - img_h // 2)
-            
-            surf.blit(self.img, pos)
+                surf.blit(self.img, pos)
+            else:
+                img_w, img_h = self.img.get_width(), self.img.get_height()
+                pos = (self.rect.x + self.rect.width // 2 - img_w // 2, 
+                self.rect.y + self.rect.height // 2 - img_h // 2)
+                surf.blit(self.active_img, pos)
         # Меняем цвет рамки в зависимости от того, активен фокус или нет
         box_color = (34, 3, 4) if self.active else (150, 150, 150) # dred или серый
         
         # Рисуем подложку (белый прямоугольник) и рамку
-        pygame.draw.rect(surf, (255, 255, 255), self.rect)
-        pygame.draw.rect(surf, box_color, self.rect, 2) # Толщина рамки 2 пикселя
+        #pygame.draw.rect(surf, (255, 255, 255), self.rect)
+        #pygame.draw.rect(surf, box_color, self.rect, 2) # Толщина рамки 2 пикселя
 
         current_time = pygame.time.get_ticks()
-
+        cool_box(current_time)
         # Рендерим текст
-        text_surf = self.font.render(self.text, True, self.text_color)
+        
         
         # Ограничиваем область отображения текста, чтобы он не вылезал за рамку поля
         # Если текст длиннее поля, сдвигаем его влево (показываем конец строки)
-        text_width = text_surf.get_width()
+        text_width = self.text_surf.get_width()
         max_visible_width = self.rect.width - 20
         
-        #if text_width > max_visible_width:
-        #    # Отрезаем кусок поверхности текста, который не влезает
-        #    sub_rect = pygame.Rect(text_width - max_visible_width, 0, max_visible_width, self.rect.height)
-        #    text_draw_surf = text_surf.subsurface(sub_rect)
-        #    text_x = self.rect.x + 10
-        #else:
-        text_draw_surf = text_surf
         text_x = self.rect.x + 10
 
         # Рисуем текст на экране
-        text_y = self.rect.y + (self.rect.height // 2 - text_draw_surf.get_height() // 2)
-        surf.blit(text_draw_surf, (text_x, text_y))
+        text_y = self.rect.y + (self.rect.height // 2 - self.text_surf.get_height() // 2) -5
+        surf.blit(self.text_surf, (text_x, text_y))
 
         # Логика мигания и отрисовки курсора (каретки)
         if current_time - self.last_cursor_toggle >= self.cursor_speed:
@@ -638,9 +652,9 @@ class TextInputField:
 
         if self.active and self.cursor_visible:
             # Считаем координату X для палочки курсора
-            cursor_x = text_x + min(text_width, max_visible_width) + 2
+            cursor_x = text_x + text_width + 2
             cursor_y_start = text_y
-            cursor_y_end = text_y + text_draw_surf.get_height()
+            cursor_y_end = text_y + self.text_surf.get_height()
             pygame.draw.line(surf, self.text_color, (cursor_x, cursor_y_start), (cursor_x, cursor_y_end), 2)
 
 class PygameTextPrinter:
@@ -687,10 +701,10 @@ class PygameTextPrinter:
         return self.current_text
 
 class VisualMap:
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h,img=None):
         self.rect = pygame.Rect(x, y, w, h)
         self.enabled = True
-        
+        self.img = img
         # Настройки отображения нод (комнат)
         self.node_radius = 20
         self.grid_size = 120  # Расстояние между комнатами в пикселях
@@ -698,11 +712,12 @@ class VisualMap:
     def draw(self, surf, player):
         if not self.enabled:
             return
-
-        # 1. Рисуем подложку карты
-        pygame.draw.rect(surf, (240, 230, 200), self.rect) # Песочный цвет
-        pygame.draw.rect(surf, (100, 80, 60), self.rect, 3) # Рамка
-        
+        if self.img == None:
+            # 1. Рисуем подложку карты
+            pygame.draw.rect(surf, (240, 230, 200), self.rect) # Песочный цвет
+            pygame.draw.rect(surf, (100, 80, 60), self.rect, 3) # Рамка
+        else:
+            surf.blit(self.img,(0,0))
         # Получаем сетку позиций комнат
         world = player.current_world
         positions = world.generate_map_positions(player.visited_locations)

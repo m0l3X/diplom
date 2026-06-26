@@ -49,7 +49,24 @@ for location in novel.player.current_world.locations:
 imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon1.png').convert()
 imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha()
 
+imgfile_btn_map = pygame.image.load("assets/images/UI/btn_map.png").convert_alpha()
+imgfile_map = pygame.image.load("assets/images/UI/map.png").convert_alpha()
+
 imgfile_blank = pygame.image.load('assets/images/blank.png').convert()
+
+imgfile_close = pygame.image.load("assets/images/UI/btn_close.png").convert_alpha()
+
+imgfile_proceed = pygame.image.load("assets/images/UI/btn_proceed.png").convert_alpha()
+imgfile_btn_inspect = pygame.image.load("assets/images/UI/btn_inspect.png").convert_alpha()
+imgfile_btn_inv = pygame.image.load("assets/images/UI/btn_inv.png").convert_alpha()
+imgfile_btn_save = pygame.image.load("assets/images/UI/btn_save.png").convert_alpha()
+
+imgfile_btn_attack = assets.get_image("UI","btn_attack")
+imgfile_btn_act = assets.get_image("UI","btn_act")
+imgfile_btn_item = assets.get_image("UI","btn_item")
+imgfile_btn_mercy = assets.get_image("UI","btn_mercy")
+
+
 
 imgfile_play0 = pygame.image.load('assets/images/UI/Pplay.png') 
 imgfile_play1 = pygame.image.load('assets/images/UI/Pplay1.png')
@@ -521,31 +538,32 @@ btn_s = Button(865, 368, 60, 55, text="Юг", func=lambda : action_move("юг"),
 btn_e = Button(924, 312, 60, 55, text="Восток", func=lambda : action_move("восток"), img="no" )
 btn_w = Button(812, 312, 60, 55, text="Запад", func=lambda : action_move("запад"), img="no" )
 
-btn_inspect = Button(300, 700, text="Осмотреться", func=lambda : open_room_items())
+btn_inspect = Button(300, 700, text="", func=lambda : open_room_items(), img=imgfile_btn_inspect)
 btn_attack = Button(500, 700, text="Атаковать", func=lambda : action_start_combat() ) ### Obsolete meat
 
-btn_save = Button(900, 20, text="Сохранить", func=lambda : display_text.set_text(novel.handle("save")["text"]) )
+btn_save = Button(900, 20, text="", func=lambda : display_text.set_text(novel.handle("save")["text"]), img=imgfile_btn_save)
 
-btn_inv = Button(700, 700, text="Инвентарь", func=lambda : open_player_inventory())
+btn_inv = Button(500, 700, text="", func=lambda : open_player_inventory(), img=imgfile_btn_inv)
 
-btn_map = Button(800, 700, text="Карта", func=lambda: setattr(map_menu, 'enabled', True))
+btn_map = Button(700, 700, text="", func=lambda: setattr(map_menu, 'enabled', True), img=imgfile_btn_map)
 
 freeroam = Menu([btn_n,btn_s,btn_e,btn_w, btn_inspect, btn_inv, btn_save, btn_map, image_ui_cross])
 
 # Вместо подмены текста на лету внутри отрисовки, сделайте явные кнопки для боя:
 point=200
 offset = 80
-btn_hit = Button(220, point, text="Ударить", func=lambda: open_player_weapons())
-input_field = TextInputField(220, point + offset, 200, 50, font=ui_font, max_chars=60, on_submit=lambda x: fight(text=x))
-btn_item = Button(220, point + offset*2, text="Предмет", func=lambda: battle_player_inventory())
-btn_mercy = Button(220, point + offset*3, text="ПОЩАДА", func=lambda: open_mercy_buttons())
+btn_hit = Button(220, point, text="", func=lambda: open_player_weapons(), img=imgfile_btn_attack)
+input_field = TextInputField(220, point + offset, 183, 60, font=ui_font, max_chars=2000, on_submit=lambda x: fight(text=x), img=imgfile_btn_act)
+btn_item = Button(220, point + offset*2, text="", func=lambda: battle_player_inventory(), img=imgfile_btn_item)
+btn_mercy = Button(220, point + offset*3, text="", func=lambda: open_mercy_buttons(), img=imgfile_btn_mercy)
 btn_array = SelectableButton(220, point-offset, 50, 60, [])
 btn_array.enabled = False
 
 
+
 battle = Menu([btn_hit, input_field, btn_item, btn_mercy, btn_array])
 
-btn_close_items = Button(700, 20, text="X", func=lambda: close_items_menu())
+btn_close_items = Button(700, 20, text="", func=lambda: close_items_menu(), img=imgfile_close)
 # Создаем окно скролла шириной 500px и высотой 300px в координатах (60, 40)
 inv_scroll_list = ScrollList(x=60, y=40, width=150, height=100, item_height=50)
 
@@ -554,12 +572,12 @@ imgfile_item = pygame.image.load('assets/images/UI/item.png').convert_alpha()
 items_menu = Menu([btn_close_items,inv_scroll_list]) 
 items_menu.enabled = False
 
-ingame_map = VisualMap(x=200, y=150, w=600, h=400)
-btn_close_map = Button(20, 20, text="X", func=lambda: setattr(map_menu, 'enabled', False))
+ingame_map = VisualMap(x=200, y=150, w=600, h=400, img = imgfile_map)
+btn_close_map = Button(20, 20, text="", func=lambda: setattr(map_menu, 'enabled', False), img=imgfile_close)
 map_menu = Menu([ingame_map,btn_close_map])
 map_menu.enabled = False
 
-btn_spec = Button(120, 700, text="==>", func=lambda: action_special())
+btn_spec = Button(120, 700, text="", func=lambda: action_special(), img=imgfile_proceed)
 intro_menu = Menu([btn_spec])
 
 
