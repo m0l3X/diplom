@@ -97,6 +97,7 @@ class Button:
                 t = elapsed / self.trans_duration
                 self.rect.x = int(self.smoothstep(self.trans_start_x, self.trans_target_x, t))
                 self.rect.y = int(self.smoothstep(self.trans_start_y, self.trans_target_y, t))
+        
 
         # 2. ОПТИМИЗИРОВАННОЕ ПОКАЧИВАНИЕ (Брать из кэша, а не крутить на лету)
         if current_time - self.last_update >= self.speed and self.wobble:

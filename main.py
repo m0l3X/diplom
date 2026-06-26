@@ -250,7 +250,7 @@ def action_use_item(item_index, item_name):
     # Закрываем инвентарь после использования (или обновляем, если предмет исчезает)
     close_items_menu()
 
-def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True):
+def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True, x=-20, y=70):
     """
     Принимает строку с предметами через ';' и функцию, 
     которая должна выполниться при клике на элемент.
@@ -270,18 +270,58 @@ def rebuild_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True):
         # Передаем в callback-функцию индекс предмета и его имя
         if i == keep_idx:
             btn = Button(
-                100, 70 + i * 50, 
+                x+120, y + i * 50, 
                 200, 70,
                 func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
                 img=imgfile_item
             )
         else:
             btn = Button(
-                -20, 70 + i * 50, 
+                x, y + i * 50, 
                 200, 70,
                 func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
                 on_hover=lambda btn: btn.translate(100, btn.rect.y, time=200), 
                 off_hover=lambda btn: btn.translate(-20, btn.rect.y, time=200),
+                img=imgfile_item
+            )
+        file = pygame.transform.scale(assets.get_image("items",item_name),(70,70))
+        btn.set_overlay_image(file,30,30)
+        new_panels.append(btn)
+        
+    items_menu.panels = new_panels
+
+def horizontal_items_menu(raw_data, on_click_callback, keep_idx=-1,inv_img=True, x=300, y=400):
+    """
+    Принимает строку с предметами через ';' и функцию, 
+    которая должна выполниться при клике на элемент.
+    """
+    image_malex.animation = 2
+    if not raw_data: 
+        items_menu.panels = [
+            Image(0, 0, imgfile_inv) if inv_img else Image(1000, 0, imgfile_inv),
+            btn_close_items,
+            Button(x, y, text="Пусто", func=lambda: close_items_menu())
+        ]
+        return
+
+    items_list = raw_data.split(";")
+    new_panels = [Image(0, 0, imgfile_inv),btn_close_items] if inv_img else [btn_close_items]
+    for i, item_name in enumerate(items_list):
+        # Передаем в callback-функцию индекс предмета и его имя
+        if i == keep_idx:
+            btn = Button(
+                x + i * 50, y - 120, 
+                20, 200,
+                func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
+                img=imgfile_item
+            )
+        else:
+            btn = Button(
+                x + i * 50, y, 
+                70, 200,
+                func=lambda item_idx=i, name=item_name: on_click_callback(item_idx, name),
+                on_hover=lambda btn: btn.translate(btn.rect.x, y - 120, time=200), 
+                off_hover=lambda btn: btn.translate(btn.rect.x, y, time=200),
                 img=imgfile_item
             )
         file = pygame.transform.scale(assets.get_image("items",item_name),(70,70))
@@ -301,14 +341,14 @@ def draw_enemies_panels(raw_data, on_click_callback):
     for i, item_name in enumerate(items_list):
         # Передаем в callback-функцию индекс предмета и его имя
         btn = Button(
-            700, 150 + i * 50, 
-            100, 200,
+            600+i * 50, 120, 
+            100, 400,
             func=lambda item_idx=i, name=item_name: on_click_callback(item_idx),
             img=imgfile_blank,
-            debug_draw_hbox = True
+            #debug_draw_hbox = True
         )
-        file = pygame.transform.scale(assets.get_image("enemies",item_name),(500,500))
-        btn.set_overlay_image(file,-400,-200)
+        file = pygame.transform.scale(assets.get_image("enemies",item_name),(700,700))
+        btn.set_overlay_image(file,-600,-300)
         new_panels.append(btn)
         
     items_menu.panels.extend(new_panels)
@@ -349,7 +389,7 @@ def open_room_items():
     # Строим меню предметов комнаты, при клике сработает подбор
     image_malex.translate(100, 0, time=200)
     
-    rebuild_items_menu(room_data, action_pick_up)
+    horizontal_items_menu(room_data, action_pick_up, inv_img=False)
     draw_enemies_panels(room_data2, action_start_combat)
 ###################### МОЛЕКС ТУТ БЛЯТЬ ФУНКЦИЯ АТАКИ
 
@@ -395,19 +435,19 @@ def battle_player_inventory(keep_idx=None):
     inv_data = novel.handle("inv_internal")["text"]
     print("ЧТО?? Уже и зелья собрался пить?? Ты настолько глупый что уже потерял столько ХП???? ХАХА, н-но вот смотри твой инвентарь, используй что хочешь..") # why are you so tsundere
     # Строим меню инвентаря, при клике сработает использование/осмотр
-    rebuild_items_menu(inv_data, battle_drop_buttons,keep_idx,inv_img=False)
+    rebuild_items_menu(inv_data, battle_drop_buttons,keep_idx)
 
 def open_player_inventory(keep_idx=None):
     items_menu.enabled = True
     inv_data = novel.handle("inv_internal")["text"]
     print("ХМПФ!! ты хочешь чтобы я открыла для тебя инвентарь??? ну уж нет!! не надейся даже! н-но, если что он открылся.. н-наверное....") # why are you so tsundere
     # Строим меню инвентаря, при клике сработает использование/осмотр
-    rebuild_items_menu(inv_data, drop_buttons, keep_idx,inv_img=False)
+    rebuild_items_menu(inv_data, drop_buttons, keep_idx) #,inv_img=False
 
 def reset_battle_panels():
     battle.panels = [btn_hit, input_field, btn_item, btn_mercy, btn_array]
     btn_array.enabled = False
-    input_field.text = "Сказать..."
+    input_field.text = ""
 
 def run(item_idx=None, name=None):
     reset_battle_panels()
@@ -713,7 +753,7 @@ while True:
             # Показываем ХП врага, если идет бой
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)
-                screen.blit(enemy_hp_text, (780, 160))
+                screen.blit(enemy_hp_text, (720, 120))
         if items_menu.enabled:
             items_menu.draw(screen)
         if map_menu.enabled:
