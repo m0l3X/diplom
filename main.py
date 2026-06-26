@@ -45,60 +45,56 @@ novel.handle("load")
 for location in novel.player.current_world.locations:
     if os.path.exists(f'assets/images/locations/{location.id}.png'):
         bgs[location.id] = pygame.image.load(f'assets/images/locations/{location.id}.png').convert()
+imgfile_bg_menu = assets.get_image("UI", "menu_fon1")
+imgfile_textbox = assets.get_image("UI", "button")
 
-imgfile_bg_menu = pygame.image.load('assets/images/UI/menu_fon1.png').convert()
-imgfile_textbox = pygame.image.load('assets/images/UI/button.png').convert_alpha()
+imgfile_btn_map = assets.get_image("UI", "btn_map")
+imgfile_map = assets.get_image("UI", "map")
 
-imgfile_btn_map = pygame.image.load("assets/images/UI/btn_map.png").convert_alpha()
-imgfile_map = pygame.image.load("assets/images/UI/map.png").convert_alpha()
 
 imgfile_blank = pygame.image.load('assets/images/blank.png').convert()
 
-imgfile_close = pygame.image.load("assets/images/UI/btn_close.png").convert_alpha()
+imgfile_close = assets.get_image("UI", "btn_close")
 
-imgfile_proceed = pygame.image.load("assets/images/UI/btn_proceed.png").convert_alpha()
-imgfile_btn_inspect = pygame.image.load("assets/images/UI/btn_inspect.png").convert_alpha()
-imgfile_btn_inv = pygame.image.load("assets/images/UI/btn_inv.png").convert_alpha()
-imgfile_btn_save = pygame.image.load("assets/images/UI/btn_save.png").convert_alpha()
-
-imgfile_btn_attack = assets.get_image("UI","btn_attack")
-imgfile_btn_act = assets.get_image("UI","btn_act")
-imgfile_btn_item = assets.get_image("UI","btn_item")
-imgfile_btn_mercy = assets.get_image("UI","btn_mercy")
+imgfile_proceed = assets.get_image("UI", "btn_proceed")
+imgfile_btn_inspect = assets.get_image("UI", "btn_inspect")
+imgfile_btn_inv = assets.get_image("UI", "btn_inv")
+imgfile_btn_save = assets.get_image("UI", "btn_save")
 
 
+imgfile_btn_attack = assets.get_image("UI", "btn_attack")
+imgfile_btn_act = assets.get_image("UI", "btn_act")
+imgfile_btn_item = assets.get_image("UI", "btn_item")
+imgfile_btn_mercy = assets.get_image("UI", "btn_mercy")
 
-imgfile_play0 = pygame.image.load('assets/images/UI/Pplay.png') 
-imgfile_play1 = pygame.image.load('assets/images/UI/Pplay1.png')
-imgfile_exit0 = pygame.image.load('assets/images/UI/exit.png')
-imgfile_exit1 = pygame.image.load('assets/images/UI/exit1.png')
-imgfile_gamename = pygame.image.load('assets/images/UI/game.png').convert_alpha()
-cursor_img = pygame.image.load('assets/images/UI/cursor.png').convert_alpha()
-malex_click = pygame.image.load('assets/images/UI/malexclick.png').convert_alpha()
+imgfile_play0 = assets.get_image("UI", "Pplay") 
+imgfile_play1 = assets.get_image("UI", "Pplay1")
+imgfile_exit0 = assets.get_image("UI", "exit")
+imgfile_exit1 = assets.get_image("UI", "exit1")
+imgfile_gamename = assets.get_image("UI", "game")
+cursor_img = assets.get_image("UI", "cursor")
+malex_click = assets.get_image("UI", "malexclick")
 
-#тут загружаются кадрі анимации
+#тут загружаются кадрi анимации
 anim_malex_static = [
-    pygame.image.load('assets/images/sprites/Pmalex.png').convert_alpha(),
-    pygame.image.load('assets/images/sprites/Pmalex01.png').convert_alpha(),
+    assets.get_image("sprites", "Pmalex"),
+    assets.get_image("sprites", "Pmalex01"),
 ]
 anim_malex_thinks = [
-    pygame.image.load('assets/images/sprites/Pmalexthinks.png').convert_alpha(),
-    pygame.image.load('assets/images/sprites/Pmalexthinks1.png').convert_alpha(),
+    assets.get_image("sprites", "Pmalexthinks"),
+    assets.get_image("sprites", "Pmalexthinks1"),
 ]
 anim_malex_menu = [
-    pygame.image.load('assets/images/UI/malex.png').convert_alpha(),
-    pygame.image.load('assets/images/UI/malex1.png').convert_alpha(),
+    assets.get_image("UI", "malex"),
+    assets.get_image("UI", "malex1"),
 ]
 
-imgfile_malex_fall = pygame.image.load('assets/images/sprites/Pmalexfall.png').convert_alpha()
-imgfile_malex_attack = pygame.image.load('assets/images/sprites/Pmalexattack.png').convert_alpha()
+imgfile_malex_fall = assets.get_image("sprites", "Pmalexfall")
+imgfile_malex_attack = assets.get_image("sprites", "Pmalexattack")
 
-imgfile_inv = pygame.image.load('assets/images/UI/inventory.png').convert_alpha()
-#button_x, button_y = 0, 0
-#click_zone = pygame.Rect()
-#
-#exit_button_x, exit_button_y = 0, 0
-#exit_click_zone = pygame.Rect()
+imgfile_inv = assets.get_image("UI", "inventory")
+
+
 def start_game_callback():
     res = novel.handle("load") # Получаем описание локации при входе в игру
     display_text.set_text(res["text"])
