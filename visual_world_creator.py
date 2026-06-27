@@ -636,7 +636,7 @@ class VisualWorldSDK:
         if not raw_text: return
         try:
             if hasattr(World, "from_dict"):
-                self.active_world = World.from_dict(base64.b64encode(json.dumps(raw_text).encode('utf-8')).decode('utf-8'))
+                self.active_world = World.from_dict(base64.b64encode(json.dumps(json.loads(raw_text)).encode('utf-8')).decode('utf-8'))
                 self.current_location_idx = None
                 self.refresh_location_list()
                 messagebox.showinfo("Успех", "Объект World успешно обновлен из JSON-текста.")
