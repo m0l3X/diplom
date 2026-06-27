@@ -7,7 +7,7 @@ import base64
 import msvcrt
 import requests
 import random
-IP = "http://192.168.1.250:8080" #"http://213.211.74.112:8080" #
+IP = "http://plovstation.theworkpc.com:8080" #"http://213.211.74.112:8080" #
 def hashstr(st):
     return hashlib.sha256(st.encode('utf-8')).hexdigest()
 

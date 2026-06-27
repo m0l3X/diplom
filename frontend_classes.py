@@ -349,7 +349,7 @@ class Image_old:
         threading.Thread(target=animate, daemon=True).start()
 
 class Image:
-    def __init__(self, x, y, img, animations=None, animation_speed=500, anim=False):
+    def __init__(self, x, y, img, animations=None, animation_speed=500, anim=False, w=None,h=None):
         self.img = img
         self.rect = pygame.Rect(x, y, img.get_width(), img.get_height())
         self.animations = animations
@@ -359,6 +359,9 @@ class Image:
         self.current_frame = 0
         self.last_update = 0
         self.enabled = True
+
+        if w and h:
+            self.img = pygame.transform.scale(self.img, (w,h))
 
         # --- НОВЫЕ ПЕРЕМЕННЫЕ ДЛЯ ТРЕНДИНГА АНИМАЦИЙ В ОДНОМ ПОТОКЕ ---
         # Переменные движения (translate)

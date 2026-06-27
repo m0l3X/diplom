@@ -22,6 +22,9 @@ novel = RPGNovel("Malex")
 
 assets = AssetManager()
 
+imgfile_btn = pygame.image.load('assets/images/UI/buttonmini.png').convert_alpha()
+
+
 display_text = PygameTextPrinter(speed_ms=25)
 display_text.set_text("missingno")
 last_text_string = ""
@@ -35,7 +38,7 @@ dred = (34, 3, 4)
 # Диалоговое окно и шрифты
 dialog_font = pygame.font.SysFont('Freeride', 27) 
 ui_font = pygame.font.SysFont('Freeride', 20)
-names_font = pygame.font.SysFont('Freeride', 35)
+names_font = pygame.font.SysFont('Freeride', 26, bold=True)
 
 # Загрузка ассетов (код напарника)
 #nemo_image = pygame.image.load('assets/images/sprites/enemy/nemo.png')
@@ -640,7 +643,7 @@ text_surface = dialog_font.render(display_text.get_text(), True, black, wrapleng
 pygame.mouse.set_visible(False)
 while True:
     mouse_pos = pygame.mouse.get_pos()
-    clock.tick(60) # Ограничиваем FPS, чтобы проц не умирал
+    clock.tick(30) # Ограничиваем FPS, чтобы проц не умирал
     #тут херня с обновлением кадров анимации
     
     
@@ -736,7 +739,9 @@ while True:
         # --- ИНТЕРФЕЙС И КНОПКИ ДЕЙСТВИЙ ---
         # Выводим ХП игрока сверху
         hp_text = names_font.render(f"Малекс HP: {novel.player.gethp()}", True, black)
-        screen.blit(hp_text, (30, 145))
+        hp_bg = Image(30,120,img=imgfile_btn,w=hp_text.get_width()+20,h=60)
+        hp_bg.draw(screen)
+        screen.blit(hp_text, (hp_bg.rect.x+10,hp_bg.rect.y+15))
         
         # Рисуем кнопки в зависимости от состояния движка (EXPLORING или COMBAT)
         if novel.state == "EXPLORING":
@@ -753,7 +758,9 @@ while True:
             # Показываем ХП врага, если идет бой
             if novel.current_enemy:
                 enemy_hp_text = names_font.render(f"{novel.current_enemy.name} HP: {novel.current_enemy.gethp()}", True, dred)
-                screen.blit(enemy_hp_text, (720, 120))
+                enemy_hp_bg = Image(710,75,img=imgfile_btn,w=enemy_hp_text.get_width()+20,h=60)
+                enemy_hp_bg.draw(screen)
+                screen.blit(enemy_hp_text, (enemy_hp_bg.rect.x+10, enemy_hp_bg.rect.y+15))
         if items_menu.enabled:
             items_menu.draw(screen)
         if map_menu.enabled:
