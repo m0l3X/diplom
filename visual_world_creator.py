@@ -315,9 +315,9 @@ class VisualWorldSDK:
         loc.description = self.txt_loc_desc.get("1.0", tk.END).strip()
         
         try:
-            loc.flags = json.loads(self.txt_loc_flags.get("1.0", tk.END).strip() or "{}")
+            loc.special_flags = json.loads(self.txt_loc_flags.get("1.0", tk.END).strip() or "{}")
         except Exception:
-            loc.flags = {}
+            loc.special_flags = {}
         
         loc.exits = {}
         for d, entry in self.exit_entries.items():
