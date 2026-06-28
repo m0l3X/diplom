@@ -580,7 +580,7 @@ If user says 'rizz' → become weak, submissive, shy.
         novel.conversations[self.npc_id].append({"role": "user", "content": message})
         try:
             response = requests.post(
-                f"{ip}/v1/chat/completions",
+                f"{novel.ip}/v1/chat/completions",
                 headers={"Content-Type": "application/json"},
                 json={
                     "max_tokens": 800,
