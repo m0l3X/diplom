@@ -7,7 +7,7 @@ import os
 import random
 import threading
 
-from frontend_classes import AssetManager, Button, Image, PygameTextPrinter, Menu, SelectableButton, TextInputField, ScrollList, VisualMap
+from frontend_classes import AssetManager, Image, PygameTextPrinter, Menu, TextInputField, ScrollList, VisualMap, Button, SelectableButton
 
 pygame.init()
 #pygame.mixer.init()
@@ -22,8 +22,11 @@ novel = RPGNovel("Malex")
 
 assets = AssetManager()
 
-imgfile_btn = assets.get_image('UI','buttonmini')
+imgfile_btn_next = assets.get_image('UI','next', (70,70))
+imgfile_btn_prev = assets.get_image('UI','prev', (70,70))
 
+imgfile_btn = assets.get_image('UI','buttonmini', (70,70))
+Button.set_btn_images(imgfile_btn, imgfile_btn_next, imgfile_btn_prev)
 
 display_text = PygameTextPrinter(speed_ms=25)
 display_text.set_text("missingno")
