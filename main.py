@@ -22,7 +22,7 @@ novel = RPGNovel("Malex")
 
 assets = AssetManager()
 
-imgfile_btn = pygame.image.load('assets/images/UI/buttonmini.png').convert_alpha()
+imgfile_btn = assets.get_image('UI','buttonmini')
 
 
 display_text = PygameTextPrinter(speed_ms=25)
@@ -42,7 +42,7 @@ names_font = pygame.font.SysFont('Freeride', 26, bold=True)
 
 # Загрузка ассетов (код напарника)
 #nemo_image = pygame.image.load('assets/images/sprites/enemy/nemo.png')
-imgfile_bg = pygame.image.load('assets/images/fon.png').convert()
+imgfile_bg = assets.get_image('.','fon')
 bgs = {}
 novel.handle("load")
 for location in novel.player.current_world.locations:
@@ -55,7 +55,7 @@ imgfile_btn_map = assets.get_image("UI", "btn_map")
 imgfile_map = assets.get_image("UI", "map")
 
 
-imgfile_blank = pygame.image.load('assets/images/blank.png').convert()
+imgfile_blank = assets.blank_img
 
 imgfile_close = assets.get_image("UI", "btn_close")
 
@@ -131,7 +131,7 @@ btn_malex_menu_click = Button(590,180,210,200, func=lambda: image_malex_menu.sho
 
 menu_main = Menu([btn_play,btn_exit,btn_malex_menu_click,image_malex_menu])
 
-image_ui_cross = Image(0,0, pygame.image.load('assets/images/UI/cross.png'))
+image_ui_cross = Image(0,0, assets.get_image('UI','cross'))
 start_time = 0
 
 def uicross_shatter():
@@ -529,7 +529,7 @@ def battle_use_item(item_idx=None, name=None):
     is_loading = True
     display_text.set_text(f"Ты попытался использовать предмет... \n Ждём ответа...")
     threading.Thread(target=fetch_ai_response, daemon=True).start()
-weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
+weapon_img = Image(0,0,imgfile_blank)
 weapon_img.enabled = False
 def fight(item_idx=None, name=None, text=""):
     reset_battle_panels()
@@ -539,7 +539,7 @@ def fight(item_idx=None, name=None, text=""):
             file = assets.get_image("items",novel.handle("get_weapon_id",item_idx)["text"])
             weapon_img = Image(300-file.get_width()//2, 270-file.get_height()//2, file) # факэсс я не могу придумать как это реализовать нормально пусть пока так
         else:
-            weapon_img = Image(1000, 0, pygame.image.load(f'assets/images/sprites/main.png'))
+            weapon_img = Image(0,0,imgfile_blank)
     except:
         pass
     def fetch_ai_response():
@@ -606,7 +606,7 @@ btn_close_items = Button(700, 20, text="", func=lambda: close_items_menu(), img=
 # Создаем окно скролла шириной 500px и высотой 300px в координатах (60, 40)
 inv_scroll_list = ScrollList(x=60, y=40, width=150, height=100, item_height=50)
 
-imgfile_item = pygame.image.load('assets/images/UI/item.png').convert_alpha()
+imgfile_item = assets.get_image("UI","item")
 
 items_menu = Menu([btn_close_items,inv_scroll_list]) 
 items_menu.enabled = False

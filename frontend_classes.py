@@ -845,10 +845,16 @@ class ScrollList:
         return visible
 
 class AssetManager:
-    def __init__(self, images_path='assets/images/',blank_path='assets/images/enemies/missingno.png'):
+    def __init__(self, images_path='assets/images/',blank_path='assets/images/blank.png'):
         self.images_path = images_path
         # Сразу загружаем дефолтную заглушку, чтобы не делать этого в try/except
-        self.blank_img = pygame.image.load(blank_path)
+        try:
+            self.blank_img = pygame.image.load(blank_path)
+            print(str(pygame.image.tobytes(self.blank_img, "RGB")))
+        except:
+            print("\033[31m !!! Blank image not found, put it in assets/images/enemies/missingno.png \033[0m" )
+            
+            self.blank_img = pygame.image.frombytes(b'\xff\xff\xff', (1,1))
         # Наш оперативный кэш: { "id_предмета": Surface }
         self.__cache = {}
         self.__enemies_cache = {}
