@@ -10,7 +10,7 @@ import threading
 from frontend_classes import AssetManager, Button, Image, PygameTextPrinter, Menu, SelectableButton, TextInputField, ScrollList, VisualMap
 
 pygame.init()
-pygame.mixer.init()
+#pygame.mixer.init()
 
 weight, height = 1000, 800
 screen = pygame.display.set_mode((weight, height))
