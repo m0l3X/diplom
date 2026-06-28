@@ -8,10 +8,10 @@ pygame.init()
 weight, height = 1000, 800
 screen = pygame.display.set_mode((weight, height))
 
-btn = pygame.image.load('assets/images/UI/buttonmini.png').convert_alpha()
-btn_next_img =  pygame.image.load('assets/images/UI/next.png').convert_alpha()
-btn_prev_img = pygame.image.load('assets/images/UI/prev.png').convert_alpha()
 ui_font = pygame.font.SysFont('Freeride', 20)
+btn = pygame.image.frombytes(b'\xff\xff\xff', (1,1), "RGB")
+btn_next = pygame.image.frombytes(b'\xff\xff\xff', (1,1), "RGB")
+btn_prev  = pygame.image.frombytes(b'\xff\xff\xff', (1,1), "RGB")
 class Button:
     def __init__(self, x, y, w=None, h=None, text="", img=None, 
                  func=lambda: print("hi i'm button"), 
@@ -139,6 +139,15 @@ class Button:
         self.is_translating = True
     def img_translate(self,new,newy,time=500):
         pass
+    @classmethod
+    def set_btn_images(cls, img, next, prev):
+        global btn
+        global btn_next
+        global btn_prev
+        btn = img
+        btn_next = next
+        btn_prev = prev
+        print("Set new button images")
 class Button_old:
     def __init__(self, x, y, w=None, h=None, text="", img=None, func=lambda: print("hi i'm button"), on_hover=lambda x: print(f"hey that's my shoulder"), off_hover=lambda x: print(f"damn")):
         # Если img не передан, используем дефолтный (предполагается, что дефолтный btn загружен глобально)
@@ -234,7 +243,7 @@ class Button_old:
         threading.Thread(target=animate, daemon=True).start()
 
 class SelectableButton:
-    def __init__(self, x, y, w=None, h=None, button_array=None,next_img=btn_next_img,prev_img=btn_prev_img):
+    def __init__(self, x, y, w=None, h=None, button_array=None,next_img=btn_next,prev_img=btn_prev):
         # Задаем размеры rect
         width = w
         height = h
@@ -845,15 +854,21 @@ class ScrollList:
         return visible
 
 class AssetManager:
-    def __init__(self, images_path='assets/images/',blank_path='assets/images/enemies/missingno.png'):
+    def __init__(self, images_path='assets/images/',blank_path='assets/images/blank.png'):
         self.images_path = images_path
         # Сразу загружаем дефолтную заглушку, чтобы не делать этого в try/except
-        self.blank_img = pygame.image.load(blank_path)
+        try:
+            self.blank_img = pygame.image.load(blank_path)
+            #print(str(pygame.image.tobytes(self.blank_img, "RGB")))
+        except:
+            print("\033[31m !!! Blank image not found, put it in assets/images/enemies/missingno.png \033[0m" )
+            
+            self.blank_img = pygame.image.frombytes(b'\xff\xff\xff', (1,1), "RGB")
         # Наш оперативный кэш: { "id_предмета": Surface }
         self.__cache = {}
         self.__enemies_cache = {}
 
-    def get_image(self, path, item_name: str) -> pygame.Surface:
+    def get_image(self, path, item_name: str, ext='.png', blank_size: tuple=None) -> pygame.Surface:
         # Если предмет уже есть в кэше — возвращаем моментально
         if path not in self.__cache:
             self.__cache[path] = {}
@@ -861,7 +876,7 @@ class AssetManager:
             return self.__cache[path][item_name]
 
         # Если предмета нет, загружаем ОДИН РАЗ с диска
-        full_path = os.path.join(self.images_path, path, f"{item_name}.png")
+        full_path = os.path.join(self.images_path, path, f"{item_name}{ext}")
         
         if os.path.exists(full_path):
             try:
@@ -874,6 +889,10 @@ class AssetManager:
             print(f"[AssetManager] Not found: {full_path}")
 
         # Если файла нет или он сломан — кэшируем заглушку, чтобы больше не долбиться в диск
+        if blank_size:
+            sized_blank = pygame.transform.scale(self.blank_img, blank_size)
+            self.__cache[path][item_name] = sized_blank
+            return sized_blank
         self.__cache[path][item_name] = self.blank_img
         return self.blank_img
     def get_enemy_image(self,enemy_name):
