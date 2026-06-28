@@ -11,7 +11,10 @@ from frontend_classes import AssetManager, Image, PygameTextPrinter, Menu, TextI
 
 pygame.init()
 #pygame.mixer.init()
-
+assets = AssetManager()
+imgfile_icon = assets.get_image(".","ico",".ico")
+pygame.display.set_icon(imgfile_icon)
+del imgfile_icon
 weight, height = 1000, 800
 screen = pygame.display.set_mode((weight, height))
 pygame.display.set_caption('MALEX')
@@ -20,12 +23,11 @@ clock = pygame.time.Clock()
 
 novel = RPGNovel("Malex") 
 
-assets = AssetManager()
 
-imgfile_btn_next = assets.get_image('UI','next', (70,70))
-imgfile_btn_prev = assets.get_image('UI','prev', (70,70))
+imgfile_btn_next = assets.get_image('UI','next', blank_size=(70,70))
+imgfile_btn_prev = assets.get_image('UI','prev', blank_size=(70,70))
 
-imgfile_btn = assets.get_image('UI','buttonmini', (70,70))
+imgfile_btn = assets.get_image('UI','buttonmini', blank_size=(70,70))
 Button.set_btn_images(imgfile_btn, imgfile_btn_next, imgfile_btn_prev)
 
 display_text = PygameTextPrinter(speed_ms=25)

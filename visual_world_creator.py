@@ -23,6 +23,9 @@ class VisualWorldSDK:
         self.root.title("Visual world creator")
         self.root.geometry("1300x850")
         
+        app_icon = tk.PhotoImage(file="vveicon.png")
+        self.root.iconphoto(True, app_icon)
+
         self.active_world = World(locations=[], name="Zero")
         self.current_location_idx = None
 

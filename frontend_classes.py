@@ -868,7 +868,7 @@ class AssetManager:
         self.__cache = {}
         self.__enemies_cache = {}
 
-    def get_image(self, path, item_name: str, blank_size: tuple=None) -> pygame.Surface:
+    def get_image(self, path, item_name: str, ext='.png', blank_size: tuple=None) -> pygame.Surface:
         # Если предмет уже есть в кэше — возвращаем моментально
         if path not in self.__cache:
             self.__cache[path] = {}
@@ -876,7 +876,7 @@ class AssetManager:
             return self.__cache[path][item_name]
 
         # Если предмета нет, загружаем ОДИН РАЗ с диска
-        full_path = os.path.join(self.images_path, path, f"{item_name}.png")
+        full_path = os.path.join(self.images_path, path, f"{item_name}{ext}")
         
         if os.path.exists(full_path):
             try:
