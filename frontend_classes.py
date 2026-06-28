@@ -1,7 +1,7 @@
 import pygame
 import threading
 import random
-import os
+import os, base64, json, io
 #from main import ui_font, novel, reset_afk, image_malex
 pygame.init()
 
@@ -854,30 +854,89 @@ class ScrollList:
         return visible
 
 class AssetManager:
-    def __init__(self, images_path='assets/images/',blank_path='assets/images/blank.png'):
+    def __init__(self, images_path='assets/images/', blank_path='assets/images/blank.png', json_db_path=None):
         self.images_path = images_path
-        # Сразу загружаем дефолтную заглушку, чтобы не делать этого в try/except
+        
+        # Наша локальная таблица Base64 строк { "относительный_путь": "base64_строка" }
+        self.__base64_images = {}
+        
+        # Старая логика загрузки из JSON (оставляем для гибкости)
+        if json_db_path and os.path.exists(json_db_path):
+            try:
+                with open(json_db_path, 'r', encoding='utf-8') as f:
+                    self.__base64_images = json.load(f)
+                print(f"[AssetManager] Loaded {len(self.__base64_images)} images from JSON database.")
+            except Exception as e:
+                print(f"[AssetManager] Failed to load JSON database: {e}")
+
         try:
             self.blank_img = pygame.image.load(blank_path)
-            #print(str(pygame.image.tobytes(self.blank_img, "RGB")))
         except:
-            print("\033[31m !!! Blank image not found, put it in assets/images/enemies/missingno.png \033[0m" )
-            
+            print("\033[31m !!! Blank image not found, put it in assets/images/enemies/missingno.png \033[0m")
             self.blank_img = pygame.image.frombytes(b'\xff\xff\xff', (1,1), "RGB")
-        # Наш оперативный кэш: { "id_предмета": Surface }
+            
+        # Наш оперативный кэш
         self.__cache = {}
         self.__enemies_cache = {}
 
+    def load_from_dict(self, data_dict: dict):
+        """
+        Прямо подгружает словарь с Base64 строками (например, импортированный из другого файла).
+        """
+        if isinstance(data_dict, dict):
+            # Используем .update(), чтобы не затереть данные, если они уже частично были
+            self.__base64_images.update(data_dict)
+            print(f"[AssetManager] Successfully loaded {len(data_dict)} images from python dictionary.")
+        else:
+            print("[AssetManager] Error: Provided data is not a dictionary.")
+
+    def scan_and_serialize_to_json(self, output_json_path: str, valid_extensions=('.png', '.jpg', '.jpeg')):
+        """Рекурсивно ищет изображения и сохраняет в JSON файл"""
+        if not os.path.exists(self.images_path):
+            print(f"[AssetManager] Scan error: Directory {self.images_path} does not exist.")
+            return
+
+        for root, dirs, files in os.walk(self.images_path):
+            for file in files:
+                if file.lower().endswith(valid_extensions):
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, self.images_path).replace("\\", "/")
+                    try:
+                        with open(full_path, "rb") as image_file:
+                            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                            self.__base64_images[rel_path] = encoded_string
+                    except Exception as e:
+                        print(f"[AssetManager] Failed to serialize {full_path}: {e}")
+
+        try:
+            with open(output_json_path, 'w', encoding='utf-8') as f:
+                json.dump(self.__base64_images, f, ensure_ascii=False, indent=4)
+            print(f"[AssetManager] Successfully saved {len(self.__base64_images)} assets to {output_json_path}")
+        except Exception as e:
+            print(f"[AssetManager] Error writing JSON file: {e}")
+
     def get_image(self, path, item_name: str, ext='.png', blank_size: tuple=None) -> pygame.Surface:
-        # Если предмет уже есть в кэше — возвращаем моментально
         if path not in self.__cache:
             self.__cache[path] = {}
         if item_name in self.__cache[path]:
             return self.__cache[path][item_name]
 
-        # Если предмета нет, загружаем ОДИН РАЗ с диска
-        full_path = os.path.join(self.images_path, path, f"{item_name}{ext}")
+        rel_key = f"{path}/{item_name}{ext}".strip("/")
         
+        # 1. Проверяем в Base64 (сюда как раз попадут данные из вашей переменной `images`)
+        if rel_key in self.__base64_images:
+            try:
+                base64_data = self.__base64_images[rel_key]
+                image_bytes = base64.b64decode(base64_data)
+                image_stream = io.BytesIO(image_bytes)
+                img = pygame.image.load(image_stream).convert_alpha()
+                self.__cache[path][item_name] = img
+                return img
+            except Exception as e:
+                print(f"[AssetManager] Error loading from Base64 for {rel_key}: {e}")
+
+        # 2. Пробуем диск
+        full_path = os.path.join(self.images_path, path, f"{item_name}{ext}")
         if os.path.exists(full_path):
             try:
                 img = pygame.image.load(full_path).convert_alpha()
@@ -885,16 +944,12 @@ class AssetManager:
                 return img
             except Exception as e:
                 print(f"[AssetManager] Error reading file {item_name}: {e}")
-        else:
-            print(f"[AssetManager] Not found: {full_path}")
 
-        # Если файла нет или он сломан — кэшируем заглушку, чтобы больше не долбиться в диск
+        # 3. Заглушка
         if blank_size:
             sized_blank = pygame.transform.scale(self.blank_img, blank_size)
             self.__cache[path][item_name] = sized_blank
             return sized_blank
+            
         self.__cache[path][item_name] = self.blank_img
         return self.blank_img
-    def get_enemy_image(self,enemy_name):
-        if enemy_name in self.__enemies_cache:
-            return self.__enemies_cache[enemy_name]

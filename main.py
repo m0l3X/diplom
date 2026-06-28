@@ -8,10 +8,12 @@ import random
 import threading
 
 from frontend_classes import AssetManager, Image, PygameTextPrinter, Menu, TextInputField, ScrollList, VisualMap, Button, SelectableButton
-
+from assets_db import images
 pygame.init()
 #pygame.mixer.init()
 assets = AssetManager()
+#assets.scan_and_serialize_to_json('assets_db.json')
+assets.load_from_dict(images)
 imgfile_icon = assets.get_image(".","ico",".ico")
 pygame.display.set_icon(imgfile_icon)
 del imgfile_icon
@@ -187,14 +189,13 @@ def execute_room_flags(direction):
     special_flags = novel.get_player_location().special_flags
     print(special_flags)
     for flag in special_flags.keys():
-        match flag:
-            case "trls":
-                for thing in special_flags["trls"].keys():
-                    table = special_flags["trls"][thing]
-                    gamething = anim_table.get(thing, None)
-                    if gamething:
-                        gamething.translate(table.get("X",0),table.get("Y",0),table.get("T",0))
-                        gamething.animation = table.get("ANIM",0)
+        if flag == "trls":
+            for thing in special_flags["trls"].keys():
+                table = special_flags["trls"][thing]
+                gamething = anim_table.get(thing, None)
+                if gamething:
+                    gamething.translate(table.get("X",0),table.get("Y",0),table.get("T",0))
+                    gamething.animation = table.get("ANIM",0)
                         
     image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
     return res
