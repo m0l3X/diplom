@@ -1,4 +1,4 @@
-# ass rpg game
+# BUILD BRANCH
 It's our cool project rpg-novel game made as a graduation project for our college.
 
 <line>
