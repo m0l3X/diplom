@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk, filedialog
-import json
+import json, ast
 
 try:
     from rpnovel_engine import World, Location, Item, Potion, Weapon, Enemy
@@ -636,7 +636,9 @@ class VisualWorldSDK:
         if not raw_text: return
         try:
             if hasattr(World, "from_dict"):
-                self.active_world = World.from_dict(base64.b64encode(json.dumps(json.loads(raw_text)).encode('utf-8')).decode('utf-8'))
+                dic = ast.literal_eval(raw_text)
+                self.active_world = World.from_dict(
+                    base64.b64encode(json.dumps(dic).encode('utf-8')).decode('utf-8'))
                 self.current_location_idx = None
                 self.refresh_location_list()
                 messagebox.showinfo("Успех", "Объект World успешно обновлен из JSON-текста.")
@@ -701,7 +703,7 @@ class VisualWorldSDK:
             messagebox.showerror("Ошибка загрузки", str(e))
 
     def save_world(self):
-        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON файлы", "*.json")])
+        path = filedialog.asksaveasfilename(defaultextension=".wld", filetypes=[("World files", "*.wld")])
         if not path: return
         try:
             if hasattr(self.active_world, "to_dict"):
