@@ -20,7 +20,7 @@ except ImportError:
 class VisualWorldSDK:
     def __init__(self, root):
         self.root = root
-        self.root.title("Malex Engine - OOP World Editor")
+        self.root.title("Visual world creator")
         self.root.geometry("1300x850")
         
         self.active_world = World(locations=[], name="Zero")
