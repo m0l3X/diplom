@@ -14,7 +14,7 @@ pygame.mixer.init()
 
 weight, height = 1000, 800
 screen = pygame.display.set_mode((weight, height))
-pygame.display.set_caption('Gay')
+pygame.display.set_caption('MALEX')
 
 clock = pygame.time.Clock()
 
