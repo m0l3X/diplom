@@ -4,7 +4,7 @@ import sys as sus
 from rpnovel_engine import RPGNovel 
 import os
 #import base64
-import random
+import re
 import threading
 
 from frontend_classes import AssetManager, Image, PygameTextPrinter, Menu, TextInputField, ScrollList, VisualMap, Button, SelectableButton
@@ -193,6 +193,38 @@ def execute_room_flags(direction):
                     if gamething:
                         gamething.translate(table.get("X",0),table.get("Y",0),table.get("T",0))
                         gamething.animation = table.get("ANIM",0)
+            case "front_command":
+                commands = special_flags["command"].split(";")
+    
+                for command in commands:
+                    command = command.strip()
+                    if not command:
+                        continue
+                        
+                    # Регуляркой вытаскиваем: объект, метод и то, что в скобках
+                    match = re.match(r"(\w+)\.(\w+)\((.*)\)", command)
+                    if match:
+                        obj_name, method_name, args_str = match.groups()
+                        
+                        # Безопасность: проверяем, разрешен ли этот объект
+                        if obj_name in anim_table:
+                            target_obj = anim_table[obj_name]
+                            
+                            # Проверяем, есть ли у объекта такой метод (например, translate)
+                            if hasattr(target_obj, method_name):
+                                method = getattr(target_obj, method_name)
+                                
+                                # Парсим аргументы (очень просто, чисто для примера)
+                                # В реальном коде стоит сделать их обработку аккуратнее
+                                args = [int(x.strip()) if x.strip().isdigit() else x.strip().strip("'\"") 
+                                        for x in args_str.split(",") if x.strip()]
+                                
+                                # Вызываем метод объекта с безопасными аргументами!
+                                method(*args)
+                            else:
+                                print(f"Ошибка: у объекта {obj_name} нет метода {method_name}")
+                        else:
+                            print(f"Попытка обхода безопасности! Объект {obj_name} запрещен.")
                         
     image_bg.img = bgs[novel.player.location] if novel.player.location in bgs.keys() else imgfile_bg
     return res
